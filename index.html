@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Morgan AI Quant Engine</title>
+<style>
+:root{--bg:#f6f4ee;--ink:#1a1f2b;--mut:#7b7f8a;--line:#d9d4c7;--up:#12a89d;--dn:#e04a4a;--bl:#3b6cf0;--card:#fffdf8}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font:11px/1.35 ui-monospace,Menlo,Consolas,monospace}
+#app{height:100dvh;display:flex;flex-direction:column;gap:4px;padding:calc(env(safe-area-inset-top,0px) + 4px) 6px calc(env(safe-area-inset-bottom,0px) + 4px)}
+.row{display:flex;gap:4px;align-items:center}
+.box{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+h1{font-size:12px;letter-spacing:.5px;white-space:nowrap}
+#q{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:5px 6px;font:inherit;background:#fff}
+button{font:inherit;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:5px;padding:5px 8px}
+button.ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+#list{position:absolute;left:6px;right:6px;top:40px;z-index:9;background:#fff;border:1px solid var(--line);border-radius:6px;max-height:40dvh;overflow:auto;display:none}
+#list div{padding:7px 8px;border-bottom:1px solid var(--line)}
+.st{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.st div{text-align:center}.st b{display:block;font-size:13px}.st span{color:var(--mut);font-size:9px}
+.cv{position:relative;overflow:hidden;padding:0}
+canvas{width:100%;height:100%;display:block}
+#orbw{flex:1.5;min-height:120px}#chw{flex:.8;min-height:70px}
+#meg{font-size:10.5px}#meg p{margin:2px 0}#meg i{font-style:normal;color:var(--mut)}
+.chip{display:inline-block;border-radius:4px;padding:1px 6px;color:#fff;font-weight:700}
+#msg{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;background:rgba(246,244,238,.96);z-index:20;text-align:center;padding:20px}
+#msg button{padding:12px 20px;font-size:13px}
+</style></head><body>
+<div id="app">
+  <div class="row"><h1>MORGAN&nbsp;QUANT</h1><input id="q" placeholder="Search pair: EURUSD, BTCUSD, XAUUSD..." autocomplete="off"><button id="env" class="ghost">DEMO</button></div>
+  <div id="list"></div>
+  <div class="box st"><div><b id="sSym">-</b><span>PAIR</span></div><div><b id="sBal">-</b><span>BALANCE</span></div><div><b id="sPnl">-</b><span>SESSION P&amp;L</span></div><div><b id="sOpen">-</b><span>OPEN POS</span></div></div>
+  <div id="orbw" class="box cv"><canvas id="orb"></canvas></div>
+  <div id="chw" class="box cv"><canvas id="ch"></canvas></div>
+  <div id="meg" class="box"></div>
+</div>
+<div id="msg"><div style="font-size:15px;font-weight:700">MORGAN AI QUANT ENGINE</div><div id="mt" style="color:#7b7f8a">Tap to log in with cTrader, pick your account and allow access.</div><button id="login">LOGIN WITH CTRADER</button></div>
+<script>
+const CID='40001_PHI0xB6Yq8m5wkmErP66MQwBmizcbSendTkMCWX0Bcfp1LPyS8',WORKER='https://mute-shadow-9594.katebasadat.workers.dev/';
+const $=id=>document.getElementById(id),LS=localStorage;
+const S={ws:null,seq:1,tok:LS.mq_tok||'',sec:LS.mq_sec||'',env:LS.mq_env||'demo',acct:+LS.mq_acct||0,accs:[],syms:[],cur:null,digits:5,bars:[],bid:0,ask:0,bal:0,bal0:null,open:0,stop:false,an:null};
+const redirect=()=>{let p=location.pathname;if(p.endsWith('/index.html'))p=p.slice(0,-10);return location.origin+p};
+const send=(t,p)=>{if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify({clientMsgId:'m'+S.seq++,payloadType:t,payload:p}))};
+const say=t=>{$('mt').textContent=t};
+// ---------- login (same flow as the bot: cTrader page -> Worker swaps code for token) ----------
+$('login').onclick=()=>{location.href='https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id='+encodeURIComponent(CID)+'&redirect_uri='+encodeURIComponent(redirect())+'&scope=trading&product=web'};
+async function boot(){
+  const code=new URLSearchParams(location.search).get('code');
+  if(code){history.replaceState({},'',location.pathname);say('Finishing login...');
+    try{const d=await(await fetch(WORKER+'?code='+encodeURIComponent(code)+'&redirect_uri='+encodeURIComponent(redirect()))).json();
+      if(!d.accessToken){say('Login failed: '+(d.description||d.errorCode||'unknown')+'. Tap to try again.');return}
+      S.tok=d.accessToken;S.sec=d.clientSecret||S.sec;LS.mq_tok=S.tok;LS.mq_sec=S.sec;if(d.refreshToken)LS.mq_ref=d.refreshToken;}
+    catch(e){say('Could not reach the login helper: '+e.message);return}}
+  if(S.tok&&S.sec)connect();
+}
+$('env').textContent=S.env.toUpperCase();
+$('env').onclick=()=>{S.env=S.env==='demo'?'live':'demo';LS.mq_env=S.env;LS.mq_acct='';S.acct=0;$('env').textContent=S.env.toUpperCase();if(S.ws){S.stop=true;S.ws.close()}setTimeout(connect,300)};
+// ---------- cTrader connection ----------
+function connect(){
+  S.stop=false;say('Connecting...');$('msg').style.display='flex';
+  const ws=S.ws=new WebSocket('wss://'+S.env+'.ctraderapi.com:5036');
+  ws.onopen=()=>{send(2100,{clientId:CID,clientSecret:S.sec});S.hb=setInterval(()=>send(51,{}),20000)};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}handle(m.payloadType,m.payload||{})};
+  ws.onclose=()=>{clearInterval(S.hb);if(S.ws!==ws)return;if(!S.stop){say('Connection dropped, reconnecting...');$('msg').style.display='flex';setTimeout(connect,2500)}};
+}
+function pickAcct(a){S.acct=a;LS.mq_acct=a;send(2102,{ctidTraderAccountId:a,accessToken:S.tok})}
+function handle(t,p){
+  if(t===2101)send(2149,{accessToken:S.tok});
+  else if(t===2150){S.accs=(p.ctidTraderAccount||[]).filter(a=>!!a.isLive===(S.env==='live'));
+    if(!S.accs.length){say('No '+S.env+' accounts were allowed. Tap login and tick one.');$('login').style.display='';return}
+    const known=S.accs.find(a=>a.ctidTraderAccountId===S.acct);
+    if(known||S.accs.length===1)pickAcct((known||S.accs[0]).ctidTraderAccountId);
+    else{say('Choose the account to trade:');$('login').style.display='none';
+      S.accs.forEach(a=>{const b=document.createElement('button');b.textContent='Account '+(a.traderLogin||a.ctidTraderAccountId);b.onclick=()=>{pickAcct(a.ctidTraderAccountId);$('msg').querySelectorAll('.pk').forEach(x=>x.remove())};b.className='pk';$('msg').appendChild(b)})}}
+  else if(t===2103){$('msg').style.display='none';$('login').style.display='';
+    send(2121,{ctidTraderAccountId:S.acct});send(2114,{ctidTraderAccountId:S.acct});send(2124,{ctidTraderAccountId:S.acct});
+    clearInterval(S.sy);S.sy=setInterval(()=>{send(2121,{ctidTraderAccountId:S.acct});send(2124,{ctidTraderAccountId:S.acct})},30000)}
+  else if(t===2122&&p.trader){S.bal=p.trader.balance/Math.pow(10,p.trader.moneyDigits||2);if(S.bal0===null)S.bal0=S.bal;head()}
+  else if(t===2125){S.open=(p.position||[]).length;head()}
+  else if(t===2115){S.syms=(p.symbol||[]).filter(s=>s.symbolName);const d=S.syms.find(s=>/^XAUUSD/.test(s.symbolName))||S.syms[0];if(d)choose(d)}
+  else if(t===2117){const s=(p.symbol||[])[0];if(s&&S.cur&&s.symbolId===S.cur.symbolId)S.digits=s.digits||5}
+  else if(t===2138)bars(p);
+  else if(t===2131&&S.cur&&p.symbolId===S.cur.symbolId)tick(p);
+  else if(t===2142||t===50){if(p.description||p.errorCode)say((p.errorCode||'Error')+': '+(p.description||''))}
+}
+function choose(s){S.cur=s;S.bars=[];S.bid=S.ask=0;S.an=null;const a=S.acct,id=s.symbolId,now=Date.now();
+  send(2116,{ctidTraderAccountId:a,symbolId:[id]});send(2127,{ctidTraderAccountId:a,symbolId:[id]});
+  send(2137,{ctidTraderAccountId:a,symbolId:id,period:5,fromTimestamp:now-2*864e5,toTimestamp:now});head()}
+function bars(p){const k=1e5;S.bars=(p.trendbar||[]).map(b=>({t:b.utcTimestampInMinutes,o:(b.low+b.deltaOpen)/k,c:(b.low+b.deltaClose)/k,h:(b.low+b.deltaHigh)/k,l:b.low/k})).sort((a,b)=>a.t-b.t);analyze()}
+function tick(p){const k=1e5;if(p.bid)S.bid=p.bid/k;if(p.ask)S.ask=p.ask/k;const px=S.bid||S.ask;if(!px||!S.bars.length)return;
+  const m=Math.floor(Date.now()/60000),bt=m-m%5,L=S.bars[S.bars.length-1];
+  if(bt>L.t)S.bars.push({t:bt,o:px,h:px,l:px,c:px});else{L.c=px;L.h=Math.max(L.h,px);L.l=Math.min(L.l,px)}
+  const n=Date.now();if(!S.la||n-S.la>1500){S.la=n;analyze()}}
+// ---------- search ----------
+$('q').oninput=()=>{const v=$('q').value.trim().toUpperCase(),l=$('list');if(!v){l.style.display='none';return}
+  const r=S.syms.filter(s=>s.symbolName.toUpperCase().includes(v)).slice(0,12);
+  l.innerHTML=r.length?'':'<div>Not offered by this broker.</div>';r.forEach(s=>{const d=document.createElement('div');d.textContent=s.symbolName;d.onclick=()=>{choose(s);l.style.display='none';$('q').value=''};l.appendChild(d)});l.style.display='block'};
+// ---------- analysis engine (all numbers come from the live candles) ----------
+const ema=(a,n)=>{const k=2/(n+1);let e=a[0];return a.map(v=>e=v*k+e*(1-k))};
+const cl=(v,a=-1,b=1)=>Math.max(a,Math.min(b,v));
+function analyze(){const B=S.bars;if(B.length<40)return;const c=B.map(x=>x.c),n=c.length-1,e12=ema(c,12),e26=ema(c,26);
+  let g=0,ls=0;for(let i=n-13;i<=n;i++){const d=c[i]-c[i-1];d>0?g+=d:ls-=d}const rsi=ls?100-100/(1+g/ls):100;
+  const tr=B.slice(-15).map((x,i,a)=>i?Math.max(x.h-x.l,Math.abs(x.h-a[i-1].c),Math.abs(x.l-a[i-1].c)):x.h-x.l).slice(1),atr=tr.reduce((a,b)=>a+b,0)/tr.length||1e-9;
+  const base=B.slice(-60,-15).map((x,i,a)=>i?Math.max(x.h-x.l,Math.abs(x.h-a[i-1].c)):x.h-x.l).slice(1),atr0=base.reduce((a,b)=>a+b,0)/base.length||atr;
+  const w=B.slice(-22,-2),hi=Math.max(...w.map(x=>x.h)),lo=Math.min(...w.map(x=>x.l)),L=B[n],px=c[n];
+  const trend=cl((e12[n]-e26[n])/atr/1.5),mom=cl((px-c[n-6])/atr/3),rs=cl((rsi-50)/25),vol=cl(atr/atr0-1);
+  const up=px>hi,dn=px<lo,swU=L.h>hi&&L.c<hi,swD=L.l<lo&&L.c>lo;
+  const struct=swD?1:swU?-1:up?.8:dn?-.8:0;
+  const pbU=trend>.15&&Math.abs(px-e12[n])<atr*.6&&rsi<58,pbD=trend<-.15&&Math.abs(px-e12[n])<atr*.6&&rsi>42;
+  const pb=pbU?1:pbD?-1:0;
+  const score=cl(trend*.3+mom*.2+rs*.1+struct*.25+pb*.15);
+  let strat='Stand aside',why='no clean setup yet';
+  if(swU||swD){strat='Liquidity Sweep Reversal';why=(swU?'highs':'lows')+' were swept and price closed back inside'}
+  else if((up||dn)&&vol>-.1){strat='Breakout Continuation';why='price closed beyond the 20-bar '+(up?'high':'low')+' with volatility holding'}
+  else if(pb){strat='Trend Pullback';why='trend is '+(pb>0?'up':'down')+' and price is back near the 12 EMA'}
+  const conf=Math.round(50+Math.abs(score)*45),side=Math.abs(score)<.22||strat==='Stand aside'?'WAIT':score>0?'BUY':'SELL';
+  const pB=Math.max(0,score)+.05,pS=Math.max(0,-score)+.05,pW=1.1-Math.abs(score),sm=pB+pS+pW;
+  S.an={feat:[trend,mom,rs,vol,struct,pb],names:['TREND','MOMENTUM','RSI','VOLATILITY','STRUCTURE','PULLBACK'],out:[pB/sm,pW/sm,pS/sm],score,side,conf,strat:(side==='WAIT'&&strat!=='Stand aside'?'Stand aside (watching '+strat+')':strat),why:(side==='WAIT'&&strat!=='Stand aside'?'not strong enough to trade yet: '+why:why),rsi,atr,hi,lo,px,e12:e12[n],e26:e26[n],e12s:e12,e26s:e26};
+  head();megan();}
+function fx(v){return v.toFixed(S.digits>6?5:S.digits)}
+function head(){$('sSym').textContent=S.cur?S.cur.symbolName:'-';$('sBal').textContent=S.bal?S.bal.toFixed(2):'-';
+  const p=S.bal0===null?0:S.bal-S.bal0;$('sPnl').textContent=(p>=0?'+':'')+p.toFixed(2);$('sPnl').style.color=p>=0?'var(--up)':'var(--dn)';$('sOpen').textContent=S.open}
+function megan(){const a=S.an;if(!a)return;const col=a.side==='BUY'?'var(--up)':a.side==='SELL'?'var(--dn)':'#8a8f9c';
+  const tdir=a.e12>a.e26?'up':'down',v=a.feat[3]>.15?'rising':a.feat[3]<-.15?'quiet':'normal';
+  let next=a.side==='WAIT'?'I am not trading yet. A close above '+fx(a.hi)+' or below '+fx(a.lo)+' would give me a breakout; a sweep of either level would give me a reversal.'
+    :'Plan: '+a.side+' bias with '+a.conf+'% confidence. The idea is invalidated if price closes '+(a.side==='BUY'?'below '+fx(a.lo):'above '+fx(a.hi))+'.';
+  $('meg').innerHTML='<p><span class="chip" style="background:'+col+'">'+a.side+' '+a.conf+'%</span> <b>'+a.strat+'</b></p>'
+   +'<p><i>MARKET</i> '+S.cur.symbolName+' M5 is trending '+tdir+' (EMA12 vs EMA26), RSI '+a.rsi.toFixed(0)+', volatility '+v+'.</p>'
+   +'<p><i>STRATEGY</i> '+a.strat+': '+a.why+'.</p><p><i>NEXT</i> '+next+'</p>'
+   +'<p><i>MODE</i> Analysis only. Automatic execution is not switched on in this version.</p>'}
+// ---------- drawing ----------
+function fit(c){const r=c.getBoundingClientRect(),d=devicePixelRatio||1;if(c.width!==Math.round(r.width*d)||c.height!==Math.round(r.height*d)){c.width=Math.round(r.width*d);c.height=Math.round(r.height*d)}const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return[x,r.width,r.height]}
+function frame(ts){drawOrb(ts);drawCh();requestAnimationFrame(frame)}
+function drawOrb(ts){const[x,W,H]=fit($('orb'));x.clearRect(0,0,W,H);const a=S.an,cx=W/2,cy=H/2,R=Math.min(W*.2,H*.36);
+  const F=a?a.feat:[0,0,0,0,0,0],O=a?a.out:[.33,.34,.33],net=a?a.score:0;
+  const ins=F.map((_,i)=>[W*.1,H*(.12+i*.76/5)]),outs=[[W*.9,H*.25,'BUY','#12a89d'],[W*.9,H*.5,'WAIT','#8a8f9c'],[W*.9,H*.75,'SELL','#e04a4a']];
+  const T=ts/1000;
+  const vein=(x0,y0,x1,y1,val,color,seed)=>{const m=Math.abs(val);for(let k=0;k<7;k++){const off=(k-3)*R*.18,cx1=(x0+x1)/2,sag=Math.sin(seed*3+k)*H*.08;
+      x.beginPath();x.moveTo(x0,y0);x.bezierCurveTo(cx1,y0+sag,cx1,y1-sag+off*.5,x1,y1+off*.35);x.strokeStyle=color;x.globalAlpha=.12+m*.5;x.lineWidth=.4+m*1.6;x.stroke();
+      const t=((T*(.25+m*.9)+k/7+seed)%1);const px=(1-t)**3*x0+3*(1-t)**2*t*cx1+3*(1-t)*t*t*cx1+t**3*x1,py=(1-t)**3*y0+3*(1-t)**2*t*y0+3*(1-t)*t*t*(y1-sag)+t**3*y1;
+      x.globalAlpha=.9;x.fillStyle=color;x.beginPath();x.arc(px,py,.8+m*1.4,0,7);x.fill()}x.globalAlpha=1};
+  ins.forEach((p,i)=>{const v=F[i];vein(p[0]+6,p[1],cx-R*.9,cy+(i-2.5)*R*.28,v,v>=0?'#12a89d':'#e04a4a',i*.17)});
+  outs.forEach((p,i)=>{vein(cx+R*.9,cy+(i-1)*R*.35,p[0]-6,p[1],O[i]*1.4,p[3],i*.31+.5)});
+  const g=x.createRadialGradient(cx,cy,R*.1,cx,cy,R*(1+.04*Math.sin(T*2)));const c1=net>.05?'#12a89d':net<-.05?'#e04a4a':'#8a8f9c';
+  g.addColorStop(0,'#fff');g.addColorStop(.5,c1+'aa');g.addColorStop(1,c1+'22');x.fillStyle=g;x.beginPath();x.arc(cx,cy,R*(1+.04*Math.sin(T*2)),0,7);x.fill();
+  for(let i=0;i<22;i++){const an=i*.9+T*(.2+Math.abs(F[3])*.5),rr=R*(.35+.55*((i*37)%10)/10);x.fillStyle=i%2?'#3b6cf0':c1;x.globalAlpha=.55;x.beginPath();x.arc(cx+Math.cos(an)*rr,cy+Math.sin(an*1.3)*rr*.8,1.3,0,7);x.fill()}x.globalAlpha=1;
+  x.font='9px ui-monospace,monospace';x.textBaseline='middle';
+  ins.forEach((p,i)=>{x.fillStyle='#1a1f2b';x.textAlign='left';x.fillText(a?a.names[i]:'',2,p[1]-7);x.fillStyle=F[i]>=0?'#12a89d':'#e04a4a';x.fillRect(2,p[1]-2,Math.max(2,Math.abs(F[i])*W*.11),4);x.beginPath();x.arc(p[0],p[1],3,0,7);x.fill()});
+  outs.forEach((p,i)=>{x.textAlign='right';x.fillStyle=p[3];x.beginPath();x.arc(p[0],p[1],3,0,7);x.fill();x.fillText(p[2]+' '+Math.round(O[i]*100)+'%',W-2,p[1]-8)});
+  x.textAlign='center';x.fillStyle='#1a1f2b';x.fillText(a?'MEGAN '+a.side+' '+a.conf+'%':'waiting for data',cx,H-6)}
+function drawCh(){const[x,W,H]=fit($('ch'));x.clearRect(0,0,W,H);const B=S.bars.slice(-70);if(B.length<5)return;const a=S.an;
+  const hi=Math.max(...B.map(b=>b.h)),lo=Math.min(...B.map(b=>b.l)),pad=(hi-lo)*.08||1e-6,Y=v=>H-4-(v-lo+pad)/(hi-lo+2*pad)*(H-8),bw=W/B.length;
+  B.forEach((b,i)=>{const u=b.c>=b.o,cx=i*bw+bw/2;x.strokeStyle=x.fillStyle=u?'#12a89d':'#e04a4a';x.beginPath();x.moveTo(cx,Y(b.h));x.lineTo(cx,Y(b.l));x.stroke();x.fillRect(cx-bw*.35,Math.min(Y(b.o),Y(b.c)),bw*.7,Math.max(1,Math.abs(Y(b.o)-Y(b.c))))});
+  if(a){[[a.e12s,'#3b6cf0'],[a.e26s,'#d08a1e']].forEach(([s,col])=>{const q=s.slice(-B.length);x.beginPath();q.forEach((v,i)=>i?x.lineTo(i*bw+bw/2,Y(v)):x.moveTo(bw/2,Y(v)));x.strokeStyle=col;x.lineWidth=1;x.stroke()});
+    [[a.hi,'#8a8f9c'],[a.lo,'#8a8f9c']].forEach(([v,col])=>{x.setLineDash([3,3]);x.strokeStyle=col;x.beginPath();x.moveTo(0,Y(v));x.lineTo(W,Y(v));x.stroke();x.setLineDash([])})}
+  const px=S.bid||B[B.length-1].c;x.fillStyle='#1a1f2b';x.font='10px ui-monospace,monospace';x.textAlign='right';x.fillText(fx(px),W-3,Math.max(10,Y(px)-3))}
+requestAnimationFrame(frame);boot();
+</script></body></html>
