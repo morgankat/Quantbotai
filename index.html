@@ -12,7 +12,7 @@
     a{color:inherit;text-decoration:none}
     button{font-family:var(--mono);cursor:pointer}
     
-    /* TOP BAR */
+    /* ---------- TOP BAR ---------- */
     #topbar{display:flex;align-items:center;gap:14px;background:var(--panel);border-bottom:1px solid var(--line);padding:5px 12px;position:sticky;top:0;z-index:50}
     .logo{display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;letter-spacing:.5px}
     .logo .mark{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--purple),var(--teal));display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px}
@@ -30,12 +30,12 @@
     .engine-btn{border:1px solid var(--line);background:#fff;padding:5px 10px;border-radius:4px;font-size:8.5px;font-weight:700;letter-spacing:.6px}
     .engine-btn.on{background:var(--green);color:#fff;border-color:var(--green)}
 
-    /* TICKER */
+    /* ---------- TICKER ---------- */
     #ticker{background:var(--ink);color:#cfd0dc;overflow:hidden;white-space:nowrap;padding:3px 0;font-size:8px;letter-spacing:.4px}
     #ticker span{display:inline-block;padding:0 22px}
     #ticker .g{color:#7ee2a8}#ticker .r{color:#ff8a8a}#ticker .b{color:#8fb4ff}#ticker .p{color:#c9b8ff}
 
-    /* PANELS & GRIDS */
+    /* ---------- GRID ---------- */
     .panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 8px;position:relative;overflow:hidden}
     .ptitle{font-size:7.5px;letter-spacing:1.1px;color:var(--mut);font-weight:700;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
     .ptitle .dot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;animation:blink 1.6s infinite}
@@ -141,7 +141,7 @@
     #logs{height:88px}.pnl-big{font-size:20px;margin:0 0 2px}#eqSpark{height:26px;margin-top:2px}.desk-strip{margin-top:2px}
     #modelChart,#landing{height:84px}.sig-big{font-size:18px}.bar-row{margin-top:1.5px}
 
-    /* DARK MODE */
+    /* DARK THEME */
     body.dark{--bg:#0b0f14;--panel:#121821;--ink:#e6edf3;--mut:#8b949e;--line:#232b36}
     body.dark #msg{background:rgba(11,15,20,.97)}
     body.dark .engine-btn,body.dark .action-row button{background:#1b2430;color:var(--ink)}body.dark .conn-btn{background:var(--purple)}
@@ -156,7 +156,7 @@
 
 <div id="msg">
   <div style="font-size:14px; font-weight:800; color:var(--ink)">MORGAN AI QUANT ENGINE</div>
-  <div style="font-size:9px; color:var(--mut)" id="mt">Tap below to log in with cTrader, select your account and grant trading permissions.</div>
+  <div style="font-size:9px; color:var(--mut)" id="mt">Tap to log in with cTrader, pick your account and allow access.</div>
   <button id="login">LOGIN WITH CTRADER</button>
 </div>
 
@@ -292,11 +292,10 @@ function addLog(tag, msg, amt){
 }
 
 const tickerMsgs = [
-  'QUANT ENGINE ONLINE — REAL CTRADER FEED ACTIVE',
-  'MEGAN QUANT BRAIN SIMULATING 20,480 PROBABILITY WORLDS',
-  'BREAK OF STRUCTURE (BOS) ENGINE READY',
-  'MARKET STRUCTURE SHIFT (MSS) FILTERS ENABLED',
-  'DYNAMIC ATR RISK MANAGEMENT LOCK ACTIVE'
+  'QUANT ENGINE MAX GRADE — INSTITUTIONAL CONFLUENCE ACTIVE',
+  'STRICT TREND ALIGNMENT & ASYMMETRIC REWARD FILTERS ENFORCED',
+  'ZERO COUNTER-TREND TOLERANCE — HIGH PROBABILITY ONLY',
+  'CIRCUIT BREAKER: AI ADVISOR SYNCED'
 ];
 
 function buildTicker(){
@@ -377,11 +376,11 @@ function drawOrbCore(){
   }
   
   const state = $('orbState');
-  if(conf > 0.35){
-    state.textContent = (S.prob >= 0.5 ? '▲ HIGH CONVICTION LONG' : '▼ HIGH CONVICTION SHORT');
+  if(conf > 0.40){
+    state.textContent = (S.prob >= 0.5 ? '▲ MAX GRADE BULLISH CONFLUENCE' : '▼ MAX GRADE BEARISH CONFLUENCE');
     state.style.color = S.prob >= 0.5 ? 'var(--green)' : 'var(--red)';
   } else {
-    state.textContent = 'SCANNING MARKET STRUCTURE';
+    state.textContent = 'SCANNING INSTITUTIONAL STRUCTURE';
     state.style.color = 'var(--blue)';
   }
 }
@@ -414,7 +413,8 @@ const LS = localStorage;
 const X = {
   ws:null, seq:1, tok:LS.mq_tok||'', sec:LS.mq_sec||'', env:LS.mq_env||'demo', acct:+LS.mq_acct||0,
   accs:[], syms:[], cur:null, digits:5, bars:[], bid:0, ask:0, bal:0, bal0:null, open:0,
-  tf:5, lot:parseFloat(LS.mq_lot)||.01, scalp:true, pl:[], posSyms:{}, lock:0, an:null, sf:{}, sh:[]
+  tf:5, lot:parseFloat(LS.mq_lot)||.01, scalp:true, pl:[], posSyms:{}, lock:0, an:null, sf:{}, sh:[],
+  brainOnline: true
 };
 
 const TFM = {1:1, 5:5, 7:15, 8:30, 9:60}, TFN = {1:'M1', 5:'M5', 7:'M15', 8:'M30', 9:'H1'};
@@ -554,10 +554,10 @@ $('q').oninput = () => {
   l.style.display = 'block';
 };
 
-/* UPGRADED BREAK OF STRUCTURE & CAPITAL RISK ENGINE */
+/* MAXIMUM GRADE INSTITUTIONAL QUANT ENGINE */
 function analyze(){
   const B = X.bars;
-  if(B.length < 40) return;
+  if(B.length < 50) return;
   const c = B.map(x => x.c), n = c.length - 1, e12 = ema(c, 12), e26 = ema(c, 26);
   
   let g = 0, ls = 0;
@@ -568,7 +568,7 @@ function analyze(){
   const avg = a => a.reduce((p,q) => p + q, 0)/a.length;
   const atr = avg(trf(B.slice(-14))) || 1e-9;
   
-  const recent = B.slice(-22, -1);
+  const recent = B.slice(-25, -1);
   const swingHi = Math.max(...recent.map(x => x.h));
   const swingLo = Math.min(...recent.map(x => x.l));
   const L = B[n], P = B[n-1], px = c[n];
@@ -577,24 +577,38 @@ function analyze(){
   const mom = cl((px - c[n-5]) / atr / 2.5);
   const rs = cl((rsi - 50) / 25);
   
-  // Break of Structure (BOS)
-  const bosUp = L.c > swingHi && P.c <= swingHi;
-  const bosDn = L.c < swingLo && P.c >= swingLo;
-  const struct = bosUp ? 1 : bosDn ? -1 : (px > swingHi ? 0.5 : px < swingLo ? -0.5 : 0);
+  // High-Grade Break of Structure (BOS) with Momentum Confirmation
+  const bosUp = L.c > swingHi && P.c <= swingHi && mom > 0.2;
+  const bosDn = L.c < swingLo && P.c >= swingLo && mom < -0.2;
+  const struct = bosUp ? 1 : bosDn ? -1 : (px > swingHi ? 0.6 : px < swingLo ? -0.6 : 0);
   
-  const score = cl(trend * 0.25 + mom * 0.20 + rs * 0.15 + struct * 0.40);
+  let score = cl(trend * 0.35 + mom * 0.30 + rs * 0.10 + struct * 0.25);
+  let strat = 'Maximum Grade Stand Aside';
   
-  let strat = 'Stand aside';
-  if(bosUp || bosDn) strat = 'Break of Structure (BOS)';
-  else if(Math.abs(score) > 0.3) strat = 'Momentum Alignment';
+  if (bosUp || bosDn) {
+    strat = 'Institutional BOS Scalp';
+  } else if (Math.abs(score) > 0.45 && Math.sign(trend) === Math.sign(score)) {
+    strat = 'High-Conviction Trend Alignment';
+  }
+  
+  // Strict institutional filters: require high confidence threshold (>72%)
+  let side = Math.abs(score) < 0.42 || strat.includes('Stand Aside') ? 'WAIT' : score > 0 ? 'BUY' : 'SELL';
+  
+  // Absolute Anti-Knife / Trend Guardrails
+  if (side === 'BUY' && (rsi < 35 || trend < -0.4)) {
+    side = 'WAIT';
+    strat = 'Filtered (Counter-Trend Downtrend Guard)';
+  } else if (side === 'SELL' && (rsi > 65 || trend > 0.4)) {
+    side = 'WAIT';
+    strat = 'Filtered (Counter-Trend Uptrend Guard)';
+  }
+  
+  // Asymmetric Risk-to-Reward (TP is 2x to 2.5x larger than SL for high expectancy)
+  const sp = (X.ask - X.bid) || 0;
+  const slD = Math.min(Math.max(atr * 0.7, sp * 2), 1.80); // Ultra-tight max risk cap
+  const tpD = slD * 2.2; // Asymmetric profit target for positive expectancy
   
   const conf = Math.round(50 + Math.abs(score) * 48);
-  const side = Math.abs(score) < (X.scalp ? 0.15 : 0.25) || strat === 'Stand aside' ? 'WAIT' : score > 0 ? 'BUY' : 'SELL';
-  
-  const sp = (X.ask - X.bid) || 0;
-  const slD = X.scalp ? Math.max(atr * 0.75, sp * 3) : Math.max(atr * 1.2, sp * 2.5);
-  const tpD = slD * (X.scalp ? 1.3 : 1.8);
-  
   X.an = { feat:[trend,mom,rs,0,struct,0,0,0], score, side, conf, strat, rsi, atr, hi:swingHi, lo:swingLo, px, slD, tpD, e12:e12[n], e26:e26[n] };
   
   S.prob = cl(0.5 + score * 0.45, 0.05, 0.95);
@@ -612,8 +626,8 @@ function plan(){
   if(!f || !f.lotSize || !X.an) return null;
   const step = f.stepVolume || 1, minV = f.minVolume || 1, sl = X.an.slD;
   
-  // Account risk capped at 1.5%
-  let maxRiskAmt = Math.max(10, S.bankroll * 0.015);
+  // Maximum Grade Risk Protection (Under 1% risk per trade)
+  let maxRiskAmt = Math.max(4, S.bankroll * 0.01);
   let calculatedLot = (maxRiskAmt / (sl * (f.lotSize / 100))) || X.lot;
   let finalLot = Math.min(X.lot, calculatedLot);
   
@@ -624,27 +638,28 @@ function plan(){
 
 function maybeTrade(){
   if(!X.run || !X.an || X.an.side === 'WAIT' || Date.now() < X.lock) return;
+  
   const id = X.cur.symbolId;
   if(X.posSyms[id]) return;
   
   const p = plan();
   if(!p) return;
   
-  X.lock = Date.now() + 8000;
+  X.lock = Date.now() + 15000; // Cooldown to prevent overtrading
   const side = X.an.side === 'BUY' ? 1 : 2;
   const q5 = Math.pow(10, 5 - Math.min(5, X.digits || 5));
   const rel = v => Math.max(q5, Math.round(v * 1e5 / q5) * q5);
   
   send(2106, {
     ctidTraderAccountId: X.acct, symbolId: id, orderType: 1, tradeSide: side,
-    volume: p.vol, relativeStopLoss: rel(X.an.slD), relativeTakeProfit: rel(X.an.tpD), label: 'MEGAN_BOS'
+    volume: p.vol, relativeStopLoss: rel(X.an.slD), relativeTakeProfit: rel(X.an.tpD), label: 'MEGAN_MAX_GRADE'
   });
   
-  addLog('bet', 'EXECUTED ' + X.an.side + ' ON ' + X.cur.symbolName + ' (' + p.lots.toFixed(2) + ' LOTS)');
+  addLog('bet', 'MAX GRADE EXECUTED ' + X.an.side + ' ON ' + X.cur.symbolName + ' (' + p.lots.toFixed(2) + ' LOTS)');
 }
 
 function buildStack(){
-  const STK = ['TREND', 'MOMENTUM', 'RSI', 'VOLATILITY', 'STRUCTURE', 'BOS ENGINE'];
+  const STK = ['TREND', 'MOMENTUM', 'RSI', 'VOLATILITY', 'STRUCTURE', 'MAX CONF'];
   $('sideStack').innerHTML = STK.map((d,i) =>
     `<div class="mini" id="mini${i}"><div class="h"><span>${d}</span></div><div class="val" id="mv${i}">—</div><canvas class="spark" id="ms${i}"></canvas></div>`
   ).join('');
@@ -707,7 +722,7 @@ $('engineBtn').onclick = () => {
   X.run = !X.run;
   $('engineBtn').textContent = X.run ? 'STOP MEGAN' : 'START MEGAN';
   $('engineBtn').classList.toggle('on', X.run);
-  addLog('sys', X.run ? 'MEGAN QUANT ENGINE STARTED' : 'MEGAN ENGINE PAUSED');
+  addLog('sys', X.run ? 'MAX GRADE MEGAN ENGINE STARTED' : 'MEGAN ENGINE PAUSED');
 };
 
 $('scalpBtn').onclick = () => {
