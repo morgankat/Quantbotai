@@ -251,7 +251,7 @@ const S = {
 
 const $ = id => document.getElementById(id);
 const fmt$ = v => (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-const fmtP = v => v.toLocaleString('en-US', {minimumFractionDigits:1, maximumFractionDigits:1});
+const fx = v => (+v).toFixed(X.digits > 5 ? 5 : X.digits);
 
 function fit(cv){
   const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
@@ -385,7 +385,7 @@ function renderPnlCore(){
   c.strokeStyle = S.pnl >= 0 ? '#18a058' : '#e5484d'; c.lineWidth = 1.4; c.stroke();
 }
 
-/* CTRADER OPEN API INTEGRATION — FIXED CLIENT SECRET & ERROR LOGGING */
+/* CTRADER OPEN API INTEGRATION — AUTO-RECOVERY ON INVALID TOKENS */
 const CID = '40001_PHI0xB6Yq8m5wkmErP66MQwBmizcbSendTkMCWX0Bcfp1LPyS8';
 const WORKER = 'https://mute-shadow-9594.katebasadat.workers.dev/';
 const LS = localStorage;
@@ -404,6 +404,9 @@ const redirect = () => location.origin + location.pathname.replace(/\/index\.htm
 const send = (t,p) => { if(X.ws && X.ws.readyState === 1) X.ws.send(JSON.stringify({clientMsgId:'m'+X.seq++, payloadType:t, payload:p})); };
 
 $('login').onclick = () => {
+  // Clear any existing bad token when login button is tapped
+  LS.removeItem('mq_tok');
+  X.tok = '';
   location.href = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=' + encodeURIComponent(CID) + '&redirect_uri=' + encodeURIComponent(redirect()) + '&scope=trading&product=web';
 };
 
@@ -433,7 +436,6 @@ function connect(){
   const ws = X.ws = new WebSocket('wss://' + X.env + '.ctraderapi.com:5036');
   
   ws.onopen = () => {
-    // FIXED: Fallback to CID if X.sec is missing to prevent authentication rejections
     send(2100, {clientId: CID, clientSecret: X.sec || CID});
     X.hb = setInterval(() => send(51, {}), 20000);
   };
@@ -445,9 +447,6 @@ function connect(){
   
   ws.onclose = () => {
     clearInterval(X.hb);
-    $('mt').textContent = 'Connection lost. Reconnecting...';
-    $('msg').style.display = 'flex';
-    setTimeout(connect, 3000);
   };
 }
 
@@ -455,7 +454,9 @@ function pickAcct(a){ X.acct = a; LS.mq_acct = a; send(2102, {ctidTraderAccountI
 function refresh(){ send(2121, {ctidTraderAccountId: X.acct}); send(2124, {ctidTraderAccountId: X.acct}); }
 
 function handle(t,p){
-  if(t === 2101) send(2149, {accessToken: X.tok});
+  if(t === 2101) {
+    send(2149, {accessToken: X.tok});
+  }
   else if(t === 2150){
     X.accs = (p.ctidTraderAccount||[]).filter(a => !a.isLive === (X.env === 'live'));
     if(X.accs.length) pickAcct(X.accs[0].ctidTraderAccountId);
@@ -467,8 +468,14 @@ function handle(t,p){
     addLog('sys', 'CONNECTED TO CTRADER ACCOUNT ' + X.acct);
   }
   else if(t === 2142){
-    // Log cTrader error responses directly onto the screen modal so you can see it
-    $('mt').textContent = 'cTrader Error: ' + (p.description || p.errorCode || 'Authentication Failed');
+    // Handles cTrader errors & resets stale token automatically
+    if(p.description === "Cannot route request" || p.errorCode === "CH_ACCESS_TOKEN_INVALID" || p.errorCode === "INVALID_REQUEST"){
+      LS.removeItem('mq_tok');
+      X.tok = '';
+      $('mt').textContent = 'Session Expired. Please tap below to re-authorize.';
+    } else {
+      $('mt').textContent = 'cTrader Error: ' + (p.description || p.errorCode);
+    }
     $('msg').style.display = 'flex';
     addLog('loss', 'API ERROR: ' + (p.description || p.errorCode));
   }
@@ -638,7 +645,6 @@ function renderHeader(){
   $('tbProb').textContent = (S.prob * 100).toFixed(1) + '%';
   $('tbClock').textContent = new Date().toISOString().substr(11,8);
 }
-const fx = v => (+v).toFixed(X.digits > 5 ? 5 : X.digits);
 
 function drawCandles(){
   const cv = $('candles'); if(!cv) return;
