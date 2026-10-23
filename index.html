@@ -415,6 +415,8 @@ const mt = t => { $('mt').textContent = t; };
 function feed(t,c){ const e = $('feedChip'); e.textContent = t; e.className = 'chip ' + c; }
 
 $('login').onclick = () => {
+  LS.removeItem('mq_tok');
+  X.tok = '';
   location.href = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=' + encodeURIComponent(CID) + '&redirect_uri=' + encodeURIComponent(redirect()) + '&scope=trading&product=web';
 };
 
@@ -434,7 +436,7 @@ async function boot(){
       return;
     }
   }
-  if(X.tok && X.sec) connect();
+  if(X.tok) connect();
   else $('msg').style.display = 'flex';
 }
 
@@ -444,7 +446,7 @@ function connect(){
   $('msg').style.display = 'flex';
   const ws = X.ws = new WebSocket('wss://' + X.env + '.ctraderapi.com:5036');
   ws.onopen = () => {
-    send(2100, {clientId: CID, clientSecret: X.sec});
+    send(2100, {clientId: CID, clientSecret: X.sec || CID});
     X.hb = setInterval(() => send(51, {}), 20000);
   };
   ws.onmessage = e => {
@@ -465,7 +467,7 @@ function refresh(){ send(2121, {ctidTraderAccountId: X.acct}); send(2124, {ctidT
 function handle(t,p){
   if(t === 2101) send(2149, {accessToken: X.tok});
   else if(t === 2150){
-    X.accs = (p.ctidTraderAccount||[]).filter(a => !!a.isLive === (X.env === 'live'));
+    X.accs = (p.ctidTraderAccount||[]).filter(a => !a.isLive === (X.env === 'live'));
     if(!X.accs.length){ mt('No ' + X.env + ' accounts were allowed. Tap login and tick one.'); return; }
     const known = X.accs.find(a => a.ctidTraderAccountId === X.acct);
     if(known || X.accs.length === 1) pickAcct((known || X.accs[0]).ctidTraderAccountId);
@@ -515,7 +517,17 @@ function handle(t,p){
   else if(t === 2126){ setTimeout(refresh, 400); }
   else if(t === 2138) bars(p);
   else if(t === 2131 && X.cur && p.symbolId === X.cur.symbolId) tick(p);
-  else if(t === 2142 || t === 50){ if(p.description || p.errorCode){ mt((p.errorCode||'Error') + ': ' + (p.description||'')); addLog('sys', (p.errorCode||'ERROR') + ' ' + (p.description||'')); } }
+  else if(t === 2142 || t === 50){ 
+    if(p.description === "Cannot route request" || p.errorCode === "CH_ACCESS_TOKEN_INVALID" || p.errorCode === "INVALID_REQUEST"){
+      LS.removeItem('mq_tok');
+      X.tok = '';
+      mt('Session Expired. Tap below to re-authorize.');
+    } else if(p.description || p.errorCode){
+      mt((p.errorCode||'Error') + ': ' + (p.description||''));
+    }
+    $('msg').style.display = 'flex';
+    addLog('sys', (p.errorCode||'ERROR') + ' ' + (p.description||'')); 
+  }
 }
 
 function choose(s){
