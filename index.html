@@ -392,7 +392,7 @@ function renderPnlCore(){
   c.strokeStyle = S.pnl >= 0 ? '#18a058' : '#e5484d'; c.lineWidth = 1.4; c.stroke();
 }
 
-/* ================= CTRADER OPEN API INTEGRATION (login flow copied from the working bot) ================= */
+/* ================= CTRADER OPEN API INTEGRATION ================= */
 const CID = '40001_PHI0xB6Yq8m5wkmErP66MQwBmizcbSendTkMCWX0Bcfp1LPyS8';
 const WORKER = 'https://mute-shadow-9594.katebasadat.workers.dev/';
 const LS = localStorage;
@@ -409,7 +409,6 @@ const fx = v => (+v).toFixed(X.digits > 6 ? 5 : X.digits);
 const cl = (v,a=-1,b=1) => Math.max(a, Math.min(b, v));
 const ema = (a,n) => { const k = 2/(n+1); let e = a[0]; return a.map(v => e = v*k + e*(1-k)); };
 
-/* SAME redirect as the working bot: keeps the trailing slash */
 const redirect = () => { let p = location.pathname; if(p.endsWith('/index.html')) p = p.slice(0, -10); return location.origin + p; };
 const send = (t,p) => { if(X.ws && X.ws.readyState === 1) X.ws.send(JSON.stringify({clientMsgId:'m'+X.seq++, payloadType:t, payload:p})); };
 const mt = t => { $('mt').textContent = t; };
@@ -466,7 +465,6 @@ function refresh(){ send(2121, {ctidTraderAccountId: X.acct}); send(2124, {ctidT
 function handle(t,p){
   if(t === 2101) send(2149, {accessToken: X.tok});
   else if(t === 2150){
-    /* FIX: was "!a.isLive === ..." which removed every demo account and left the bot stuck on "Connecting..." */
     X.accs = (p.ctidTraderAccount||[]).filter(a => !!a.isLive === (X.env === 'live'));
     if(!X.accs.length){ mt('No ' + X.env + ' accounts were allowed. Tap login and tick one.'); return; }
     const known = X.accs.find(a => a.ctidTraderAccountId === X.acct);
@@ -509,7 +507,6 @@ function handle(t,p){
     const d = X.syms.find(s => /^XAUUSD/.test(s.symbolName)) || X.syms[0];
     if(d) choose(d);
   }
-  /* FIX: symbol details (lot size / step / digits) were never handled, so plan() always returned null and no trade could be placed */
   else if(t === 2117){
     const s = (p.symbol||[])[0];
     if(s) X.sf[s.symbolId] = {step:+s.stepVolume||1, min:+s.minVolume||1, lot:+s.lotSize||0};
@@ -518,7 +515,6 @@ function handle(t,p){
   else if(t === 2126){ setTimeout(refresh, 400); }
   else if(t === 2138) bars(p);
   else if(t === 2131 && X.cur && p.symbolId === X.cur.symbolId) tick(p);
-  /* FIX: show broker errors instead of silently hanging */
   else if(t === 2142 || t === 50){ if(p.description || p.errorCode){ mt((p.errorCode||'Error') + ': ' + (p.description||'')); addLog('sys', (p.errorCode||'ERROR') + ' ' + (p.description||'')); } }
 }
 
@@ -571,11 +567,9 @@ $('q').oninput = () => {
   l.style.display = 'block';
 };
 
-/* ================= EMA TREND STRATEGIES (Ride + Pullback), ported from the other bot ================= */
+/* EMA TREND STRATEGIES */
 function emaV(v,p){ if(v.length<p) return null; let e = v.slice(0,p).reduce((x,y)=>x+y,0)/p; const k = 2/(p+1); for(let i=p;i<v.length;i++) e = v[i]*k + e*(1-k); return e; }
 function emaSeries(v,p){ const out = new Array(v.length).fill(null); if(v.length<p) return out; let e = v.slice(0,p).reduce((x,y)=>x+y,0)/p; const k = 2/(p+1); out[p-1] = e; for(let i=p;i<v.length;i++){ e = v[i]*k + e*(1-k); out[i] = e; } return out; }
-/* EMA5 = fast reaction, EMA13 = confirmation (5 crossing back over 13 is the entry trigger), EMA89 = trend filter
-   (both 5 and 13 on the same side of it). A pullback = EMA5/EMA13 close together or briefly crossed the other way. */
 function emaSignal(B){
   const closes = B.map(x => x.c);
   if(closes.length < 95) return {warm: closes.length + '/95'};
@@ -595,7 +589,6 @@ function emaSignal(B){
   const entry = trend !== 'WAIT' && st.pullback && crossBack && bodyOk;
   return {trend, entry, pullback: st.pullback, e5, e13, e89};
 }
-/* Ride mode has no take-profit: it holds until EMA5+EMA13 break back through EMA89 (trend gone), then closes */
 function emaFlipExit(info){
   if(X.strat !== 'emaRide' || !info || info.warm || !X.cur || Date.now() < X.flipAt) return;
   const bad = X.pl.filter(q => q.sym === X.cur.symbolId && q.side !== info.trend);
@@ -658,7 +651,6 @@ function analyze(){
   let tpD = slD * 2.2;
   let conf = Math.round(50 + Math.abs(score) * 48);
 
-  /* EMA Ride / EMA Pullback replace the entry rule, stop and target */
   let emaInfo = null;
   if(X.strat !== 'default'){
     emaInfo = emaSignal(B);
@@ -668,7 +660,7 @@ function analyze(){
       conf = emaInfo.entry ? 100 : 0;
       strat = X.strat === 'emaRide' ? 'EMA Trend — Ride' : 'EMA Trend — Pullback';
       slD = Math.max(atr * 1.5, sp * 3);
-      tpD = X.strat === 'emaPullback' ? slD * 1.5 : 0;   // Pullback: 1:1.5 target. Ride: no target, exits on trend flip
+      tpD = X.strat === 'emaPullback' ? slD * 1.5 : 0;
     }
     const os = $('orbSub');
     if(os) os.textContent = emaInfo.warm ? ('EMA 5/13/89 warming up ' + emaInfo.warm + ' bars') : ('EMA 5/13/89 · TREND ' + emaInfo.trend + ' · ' + (emaInfo.pullback ? 'PULLBACK ARMED' : 'WAITING PULLBACK'));
@@ -720,8 +712,8 @@ function maybeTrade(){
   };
   if(X.an.tpD > 0) ord.relativeTakeProfit = rel(X.an.tpD);
   send(2106, ord);
-  X.posSyms[id] = side;                       // don't wait for the next refresh before blocking a second entry
-  if(X.strat !== 'default') X.emaS.pullback = false;   // entry consumed — wait for the next pullback
+  X.posSyms[id] = side;
+  if(X.strat !== 'default') X.emaS.pullback = false;
   
   addLog('bet', 'MAX GRADE EXECUTED ' + X.an.side + ' ON ' + X.cur.symbolName + ' (' + p.lots.toFixed(2) + ' LOTS)');
 }
@@ -815,7 +807,6 @@ $('strat').onchange = () => {
   analyze();
 };
 
-/* log out / re-login button (same behaviour as the working bot) */
 $('connBtn').onclick = () => {
   if(X.acct && confirm('Log out of cTrader on this phone?')){
     ['mq_tok','mq_sec','mq_ref','mq_acct'].forEach(k => LS.removeItem(k));
