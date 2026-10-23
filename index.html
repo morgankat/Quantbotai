@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>QuantBot — Morgan AI Quant Trading Engine</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121821;
+      --ink: #e6edf3;
+      --mut: #8b949e;
+      --line: #232b36;
+      --red: #e5484d;
+      --green: #18a058;
+      --blue: #3b6fe0;
+      --purple: #7c5cff;
+      --teal: #0fa3a3;
+      --amber: #e8a13c;
+      --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 10px;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #232b36; }
+    button { font-family: var(--mono); cursor: pointer; }
+
+    #app {
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px);
+    }
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 4px 8px;
+      sticky: top;
+      z-index: 50;
+    }
+    .logo { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 11px; }
+    .logo .mark {
+      width: 18px; height: 18px; border-radius: 4px;
+      background: linear-gradient(135deg, var(--purple), var(--teal));
+      display: flex; align-items: center; justify-content: center; color: #fff; font-size: 9px;
+    }
+    .tb-stat { display: flex; flex-direction: column; line-height: 1.1; }
+    .tb-stat .v { font-size: 11px; font-weight: 700; }
+    .tb-stat .l { font-size: 7px; color: var(--mut); }
+    .tb-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+    .chip { font-size: 7px; padding: 2px 5px; border-radius: 3px; font-weight: 700; border: 1px solid var(--line); }
+    .chip.live { background: #10261c; color: var(--green); border-color: #1d4d35; }
+    .chip.warn { background: #2a2010; color: var(--amber); border-color: #4d3a1d; }
+    
+    .conn-btn, .engine-btn, .scalp-btn {
+      border: 1px solid var(--line); background: #1b2430; color: var(--ink);
+      padding: 4px 8px; border-radius: 4px; font-size: 7.5px; font-weight: 700;
+    }
+    .engine-btn.on { background: var(--green); color: #fff; border-color: var(--green); }
+    .scalp-btn.on { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+    #ticker { background: #0f141b; color: #cfd0dc; overflow: hidden; white-space: nowrap; padding: 2px 0; font-size: 7.5px; }
+    #ticker span { display: inline-block; padding: 0 16px; }
+    .g { color: #7ee2a8; } .r { color: #ff8a8a; } .b { color: #8fb4ff; } .p { color: #c9b8ff; }
+
+    #ctlw { padding: 0 4px; display: flex; gap: 4px; }
+    #q { flex: 1; border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; font-family: var(--mono); font-size: 9px; background: var(--panel); color: var(--ink); }
+    #tfs { display: flex; gap: 2px; }
+    .tf { border: 1px solid var(--line); background: var(--panel); color: var(--mut); border-radius: 4px; padding: 3px 6px; font-size: 8px; font-weight: 700; }
+    .tf.on { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+    #grid2 { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 60px 1fr 75px; gap: 3px; padding: 0 4px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 4px; position: relative; overflow: hidden; }
+    
+    #orbPanel { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    #orb { width: 100%; flex: 1; min-height: 0; display: block; }
+    .orb-state { font-size: 8px; font-weight: 700; text-align: center; margin-top: 2px; }
+    .orb-sub { font-size: 6.5px; color: var(--mut); text-align: center; }
+
+    .rpanel { display: flex; flex-direction: column; gap: 3px; }
+    .rcard { background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 4px; flex: 1; overflow: hidden; }
+    .rcard .h { font-size: 6px; color: var(--mut); font-weight: 700; display: flex; justify-content: space-between; }
+    .cd, .big-prob { font-size: 14px; font-weight: 800; text-align: center; margin: 1px 0; }
+    .edge { font-size: 7px; text-align: center; font-weight: 700; }
+    .stake { font-size: 11px; font-weight: 800; text-align: center; margin: 1px 0; }
+
+    .action-row { display: flex; gap: 2px; margin-top: 2px; }
+    .action-row button { flex: 1; border: 1px solid var(--line); background: #1b2430; color: var(--ink); font-size: 7px; font-weight: 700; padding: 4px 0; border-radius: 3px; }
+    .action-row button.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+    #candles { width: 100%; height: clamp(140px, 22dvh, 200px); touch-action: none; display: block; }
+    
+    #tabs { display: flex; gap: 2px; padding: 0 4px; }
+    #tabs button { flex: 1; font-size: 7px; padding: 3px 0; border: 1px solid var(--line); background: var(--panel); color: var(--mut); border-radius: 3px; font-weight: 700; }
+    #tabs button.on { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+    #tabBody { height: clamp(100px, 18dvh, 140px); padding: 0 4px; }
+    #tabBody > .panel { display: none; height: 100%; overflow: auto; padding: 4px; }
+    #tabBody > .panel.act { display: block; }
+
+    #logs { font-size: 8px; line-height: 1.4; }
+    .log { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding: 1px 0; }
+    .log .t { color: var(--mut); width: 38px; }
+    .log .tag { width: 36px; text-align: center; font-weight: 700; border-radius: 2px; font-size: 6.5px; }
+    .tag.fill { background: #1b2430; color: var(--blue); }
+    .tag.win { background: #10261c; color: var(--green); }
+    .tag.loss { background: #2a1417; color: var(--red); }
+    .log .m { flex: 1; color: var(--ink); }
+
+    #msg {
+      position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; gap: 10px;
+      align-items: center; justify-content: center; text-align: center; padding: 20px;
+      background: rgba(11, 15, 20, 0.96);
+    }
+    #msg button { background: var(--purple); color: #fff; border: none; padding: 10px 18px; font-size: 11px; border-radius: 5px; font-family: var(--mono); font-weight: 700; }
+  </style>
+</head>
+<body class="dark">
+
+<div id="msg">
+  <div style="font-size:14px; font-weight:800; color:var(--ink)">MORGAN AI QUANT ENGINE</div>
+  <div style="font-size:9px; color:var(--mut)" id="mt">Connect your cTrader account to execute Megan's upgraded BOS/MSS scalping strategy.</div>
+  <button id="login">LOGIN WITH CTRADER</button>
+</div>
+
+<div id="app">
+  <div id="topbar">
+    <div class="logo"><div class="mark">M</div></div>
+    <div class="tb-stat"><span class="v" id="tbPrice">—</span><span class="l">PRICE</span></div>
+    <div class="tb-stat"><span class="v" id="tbChg" style="color:var(--green)">+0.00%</span><span class="l">CHANGE</span></div>
+    <div class="tb-stat"><span class="v" id="tbFlt" style="color:var(--green)">+$0.00</span><span class="l">FLOAT</span></div>
+    <div class="tb-right">
+      <span class="chip live" id="modeChip">DEMO</span>
+      <button class="scalp-btn" id="scalpBtn">⚡ SCALP</button>
+      <button class="engine-btn" id="engineBtn">START MEGAN</button>
+      <button class="conn-btn" id="connBtn">CTRADER</button>
+    </div>
+  </div>
+
+  <div id="ticker"><div id="tickerInner"><span class="b">MEGAN QUANT ENGINE ONLINE — READY FOR EXECUTION</span></div></div>
+
+  <div id="ctlw">
+    <input type="text" id="q" placeholder="SEARCH PAIR (e.g. XAUUSD, EURUSD)...">
+    <div id="tfs"></div>
+  </div>
+
+  <div id="grid2">
+    <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between;">
+      <div style="font-size:6px; color:var(--mut); font-weight:700">INDICATORS</div>
+      <div style="font-size:8px; font-weight:700" id="indTrend">TRD: —</div>
+      <div style="font-size:8px; font-weight:700" id="indMom">MOM: —</div>
+      <div style="font-size:8px; font-weight:700" id="indRsi">RSI: —</div>
+      <div style="font-size:8px; font-weight:700" id="indBos">BOS: —</div>
+    </div>
+
+    <div class="panel" id="orbPanel">
+      <canvas id="orb"></canvas>
+      <div class="orb-state" id="orbState">SCANNING MARKET STRUCTURE</div>
+      <div class="orb-sub" id="orbSub">Megan Core Active</div>
+    </div>
+
+    <div class="rpanel">
+      <div class="rcard">
+        <div class="h"><span>MEGAN P(UP)</span></div>
+        <div class="big-prob" id="bigProb">50%</div>
+        <div class="edge" id="edgeVal">NEUTRAL</div>
+      </div>
+      <div class="rcard">
+        <div class="h"><span>LOT SIZE</span></div>
+        <div class="stake" id="stakeVal">0.01</div>
+        <div class="action-row">
+          <button id="btnUp" class="primary">BUY</button>
+          <button id="btnDn">SELL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <canvas id="candles"></canvas>
+  </div>
+
+  <div id="tabs"></div>
+
+  <div id="tabBody">
+    <div class="panel act" id="pnlLog"><div id="logs"></div></div>
+    <div class="panel" id="pnlPos"><div id="openPos"></div></div>
+  </div>
+</div>
+
+<script>
+const CID = '40001_PHI0xB6Yq8m5wkmErP66MQwBmizcbSendTkMCWX0Bcfp1LPyS8';
+const WORKER = 'https://mute-shadow-9594.katebasadat.workers.dev/';
+const LS = localStorage;
+
+const S = { prob: 0.5, wins: 0, losses: 0, bankroll: 10000, pnl: 0, logs: [] };
+
+const X = {
+  ws: null, seq: 1, tok: LS.mq_tok || '', sec: LS.mq_sec || '', env: LS.mq_env || 'demo',
+  acct: +LS.mq_acct || 0, accs: [], syms: [], cur: null, digits: 5, bars: [], bid: 0, ask: 0,
+  bal: 0, bal0: null, open: 0, run: false, tf: 5, lot: parseFloat(LS.mq_lot) || 0.01,
+  scalp: true, pl: [], posSyms: {}, lock: 0, an: null, sf: {}
+};
+
+const TFM = { 1: 1, 5: 5, 7: 15, 8: 30, 9: 60 };
+const TFN = { 1: 'M1', 5: 'M5', 7: 'M15', 8: 'M30', 9: 'H1' };
+
+const $ = id => document.getElementById(id);
+const fx = v => (+v).toFixed(X.digits > 5 ? 5 : X.digits);
+const cl = (v, a = -1, b = 1) => Math.max(a, Math.min(b, v));
+
+function ema(a, n) {
+  const k = 2 / (n + 1);
+  let e = a[0];
+  return a.map(v => e = v * k + e * (1 - k));
+}
+
+function addLog(tag, msg) {
+  S.logs.unshift({ t: new Date().toISOString().substr(11, 8), tag, msg });
+  if (S.logs.length > 50) S.logs.pop();
+  $('logs').innerHTML = S.logs.map(l => 
+    `<div class="log"><span class="t">${l.t}</span><span class="tag ${l.tag}">${l.tag.toUpperCase()}</span><span class="m">${l.msg}</span></div>`
+  ).join('');
+}
+
+const redirect = () => location.origin + location.pathname.replace(/\/index\.html$/, '');
+
+function send(t, p) {
+  if (X.ws && X.ws.readyState === 1) {
+    X.ws.send(JSON.stringify({ clientMsgId: 'm' + X.seq++, payloadType: t, payload: p }));
+  }
+}
+
+$('login').onclick = () => {
+  location.href = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id=' + encodeURIComponent(CID) + '&redirect_uri=' + encodeURIComponent(redirect()) + '&scope=trading&product=web';
+};
+
+async function boot() {
+  const code = new URLSearchParams(location.search).get('code');
+  if (code) {
+    history.replaceState({}, '', location.pathname);
+    $('mt').textContent = 'Authenticating with cTrader...';
+    try {
+      const d = await (await fetch(WORKER + '?code=' + encodeURIComponent(code) + '&redirect_uri=' + encodeURIComponent(redirect()))).json();
+      if (d.accessToken) {
+        X.tok = d.accessToken; X.sec = d.clientSecret || X.sec;
+        LS.mq_tok = X.tok; LS.mq_sec = X.sec;
+      }
+    } catch (e) {
+      $('mt').textContent = 'Login server error: ' + e.message;
+      return;
+    }
+  }
+  if (X.tok && X.sec) connect();
+  else $('msg').style.display = 'flex';
+}
+
+function connect() {
+  $('mt').textContent = 'Connecting WebSockets...';
+  $('msg').style.display = 'flex';
+  const ws = X.ws = new WebSocket('wss://' + X.env + '.ctraderapi.com:5036');
+  
+  ws.onopen = () => {
+    send(2100, { clientId: CID, clientSecret: X.sec });
+    X.hb = setInterval(() => send(51, {}), 20000);
+  };
+  
+  ws.onmessage = e => {
+    try {
+      const m = JSON.parse(e.data);
+      handle(m.payloadType, m.payload || {});
+    } catch (_) {}
+  };
+  
+  ws.onclose = () => {
+    clearInterval(X.hb);
+    setTimeout(connect, 3000);
+  };
+}
+
+function handle(t, p) {
+  if (t === 2101) send(2149, { accessToken: X.tok });
+  else if (t === 2150) {
+    X.accs = (p.ctidTraderAccount || []).filter(a => !!a.isLive === (X.env === 'live'));
+    if (X.accs.length) pickAcct(X.accs[0].ctidTraderAccountId);
+  } else if (t === 2103) {
+    $('msg').style.display = 'none';
+    $('connBtn').textContent = 'ACCT ' + X.acct;
+    refresh();
+    send(2114, { ctidTraderAccountId: X.acct });
+    addLog('win', 'CTRATED CONNECTED — REAL-TIME BROKER DATA ACTIVE');
+  } else if (t === 2122 && p.trader) {
+    X.bal = p.trader.balance / Math.pow(10, p.trader.moneyDigits || 2);
+    if (X.bal0 === null) X.bal0 = X.bal;
+    S.bankroll = X.bal;
+  } else if (t === 2125) {
+    const l = p.position || [];
+    X.open = l.length;
+    X.posSyms = {};
+    l.forEach(q => { if (q.tradeData) X.posSyms[q.tradeData.symbolId] = q.tradeData.tradeSide; });
+  } else if (t === 2115) {
+    X.syms = (p.symbol || []).filter(s => s.symbolName);
+    const d = X.syms.find(s => /^XAUUSD/.test(s.symbolName)) || X.syms[0];
+    if (d) choose(d);
+  } else if (t === 2138) bars(p);
+  else if (t === 2131 && X.cur && p.symbolId === X.cur.symbolId) tick(p);
+}
+
+function pickAcct(a) { X.acct = a; LS.mq_acct = a; send(2102, { ctidTraderAccountId: a, accessToken: X.tok }); }
+function refresh() { send(2121, { ctidTraderAccountId: X.acct }); send(2124, { ctidTraderAccountId: X.acct }); }
+
+function choose(s) {
+  X.cur = s; X.bars = []; X.an = null;
+  send(2116, { ctidTraderAccountId: X.acct, symbolId: [s.symbolId] });
+  send(2127, { ctidTraderAccountId: X.acct, symbolId: [s.symbolId] });
+  getBars();
+  addLog('fill', 'WATCHING ' + s.symbolName + ' ' + TFN[X.tf]);
+}
+
+function getBars() {
+  const id = X.cur.symbolId, n = Date.now();
+  send(2137, { ctidTraderAccountId: X.acct, symbolId: id, period: X.tf, fromTimestamp: n - 300 * TFM[X.tf] * 6e4, toTimestamp: n });
+}
+
+function bars(p) {
+  const k = 1e5;
+  X.bars = (p.trendbar || []).map(b => ({
+    t: b.utcTimestampInMinutes, o: (b.low + b.deltaOpen) / k, c: (b.low + b.deltaClose) / k,
+    h: (b.low + b.deltaHigh) / k, l: b.low / k
+  })).sort((a, b) => a.t - b.t);
+  analyze();
+}
+
+function tick(p) {
+  const k = 1e5;
+  if (p.bid) X.bid = p.bid / k;
+  if (p.ask) X.ask = p.ask / k;
+  const px = X.bid || X.ask;
+  if (!px || !X.bars.length) return;
+  
+  const m = Math.floor(Date.now() / 60000), bt = m - m % TFM[X.tf], L = X.bars[X.bars.length - 1];
+  if (bt > L.t) X.bars.push({ t: bt, o: px, h: px, l: px, c: px });
+  else { L.c = px; L.h = Math.max(L.h, px); L.l = Math.min(L.l, px); }
+  
+  analyze();
+}
+
+/* ============================================================
+   UPGRADED ANALYTICS & BREAK OF STRUCTURE (BOS) QUANT ENGINE
+   ============================================================ */
+function analyze() {
+  const B = X.bars;
+  if (B.length < 40) return;
+  const c = B.map(x => x.c), n = c.length - 1, e12 = ema(c, 12), e26 = ema(c, 26);
+  
+  let g = 0, ls = 0;
+  for (let i = n - 13; i <= n; i++) { const d = c[i] - c[i-1]; d > 0 ? g += d : ls -= d; }
+  const rsi = ls ? 100 - 100 / (1 + g / ls) : 100;
+  
+  const trf = a => a.map((x, i, r) => i ? Math.max(x.h - x.l, Math.abs(x.h - r[i-1].c), Math.abs(x.l - r[i-1].c)) : x.h - x.l).slice(1);
+  const avg = a => a.reduce((p, q) => p + q, 0) / a.length;
+  const atr = avg(trf(B.slice(-14))) || 1e-9;
+  
+  // Market Structure High/Low (20-bar lookback)
+  const recent = B.slice(-22, -1);
+  const swingHi = Math.max(...recent.map(x => x.h));
+  const swingLo = Math.min(...recent.map(x => x.l));
+  const L = B[n], P = B[n-1], px = c[n];
+  
+  const trend = cl((e12[n] - e26[n]) / atr / 1.5);
+  const mom = cl((px - c[n-5]) / atr / 2.5);
+  const rs = cl((rsi - 50) / 25);
+  
+  // Confirmed Break of Structure (BOS)
+  const bosUp = L.c > swingHi && P.c <= swingHi;
+  const bosDn = L.c < swingLo && P.c >= swingLo;
+  const struct = bosUp ? 1 : bosDn ? -1 : (px > swingHi ? 0.5 : px < swingLo ? -0.5 : 0);
+  
+  const score = cl(trend * 0.25 + mom * 0.20 + rs * 0.15 + struct * 0.40);
+  
+  let strat = 'Scanning Structure';
+  if (bosUp || bosDn) strat = 'Break of Structure (BOS)';
+  else if (Math.abs(score) > 0.3) strat = 'Momentum Alignment';
+  
+  const conf = Math.round(50 + Math.abs(score) * 48);
+  const side = Math.abs(score) < (X.scalp ? 0.15 : 0.25) ? 'WAIT' : score > 0 ? 'BUY' : 'SELL';
+  
+  const sp = (X.ask - X.bid) || 0;
+  const slD = X.scalp ? Math.max(atr * 0.75, sp * 3) : Math.max(atr * 1.2, sp * 2.5);
+  const tpD = slD * (X.scalp ? 1.3 : 1.8);
+  
+  X.an = { score, side, conf, strat, rsi, atr, hi: swingHi, lo: swingLo, px, slD, tpD };
+  
+  // Update Indicators UI
+  $('indTrend').textContent = 'TRD: ' + (trend > 0 ? '+UP' : '-DN');
+  $('indMom').textContent = 'MOM: ' + (mom > 0 ? '+HI' : '-LO');
+  $('indRsi').textContent = 'RSI: ' + rsi.toFixed(0);
+  $('indBos').textContent = 'BOS: ' + (bosUp ? 'BULL' : bosDn ? 'BEAR' : 'NONE');
+  
+  S.prob = cl(0.5 + score * 0.45, 0.05, 0.95);
+  
+  $('bigProb').textContent = (S.prob * 100).toFixed(0) + '%';
+  $('edgeVal').textContent = side + ' (' + conf + '%)';
+  $('edgeVal').style.color = side === 'BUY' ? 'var(--green)' : side === 'SELL' ? 'var(--red)' : 'var(--ink)';
+  
+  maybeTrade();
+}
+
+function plan() {
+  const f = X.cur && X.cur.full;
+  if (!f || !f.lotSize || !X.an) return null;
+  const step = f.stepVolume || 1, minV = f.minVolume || 1, sl = X.an.slD;
+  
+  // Dynamic 1.5% Risk Cap to Prevent Account Blowouts
+  let maxRiskAmt = Math.max(10, S.bankroll * 0.015);
+  let calculatedLot = (maxRiskAmt / (sl * (f.lotSize / 100))) || X.lot;
+  let finalLot = Math.min(X.lot, calculatedLot);
+  
+  let vol = Math.round(Math.max(0.01, finalLot) * f.lotSize);
+  vol = Math.max(minV, Math.round(vol / step) * step);
+  return { vol, lots: vol / f.lotSize };
+}
+
+function maybeTrade() {
+  if (!X.run || !X.an || X.an.side === 'WAIT' || Date.now() < X.lock) return;
+  const id = X.cur.symbolId;
+  if (X.posSyms[id]) return;
+  
+  const p = plan();
+  if (!p) return;
+  
+  X.lock = Date.now() + 8000;
+  const side = X.an.side === 'BUY' ? 1 : 2;
+  const q5 = Math.pow(10, 5 - Math.min(5, X.digits || 5));
+  const rel = v => Math.max(q5, Math.round(v * 1e5 / q5) * q5);
+  
+  send(2106, {
+    ctidTraderAccountId: X.acct, symbolId: id, orderType: 1, tradeSide: side,
+    volume: p.vol, relativeStopLoss: rel(X.an.slD), relativeTakeProfit: rel(X.an.tpD), label: 'MEGAN_BOS'
+  });
+  
+  addLog('fill', 'EXECUTED ' + X.an.side + ' ' + X.cur.symbolName + ' (' + p.lots.toFixed(2) + ' LOTS)');
+}
+
+// Visual Canvas Engine
+function drawCandles() {
+  const cv = $('candles');
+  cv.width = cv.clientWidth; cv.height = cv.clientHeight;
+  const c = cv.getContext('2d'), w = cv.width, h = cv.height;
+  c.clearRect(0, 0, w, h);
+  
+  const B = X.bars.slice(-40);
+  if (B.length < 5) return;
+  
+  const hi = Math.max(...B.map(b => b.h)), lo = Math.min(...B.map(b => b.l));
+  const Y = v => h - 10 - ((v - lo) / (hi - lo || 1)) * (h - 20);
+  const bw = w / B.length;
+  
+  B.forEach((b, i) => {
+    const up = b.c >= b.o, x = i * bw + bw / 2;
+    c.strokeStyle = c.fillStyle = up ? '#18a058' : '#e5484d';
+    c.beginPath(); c.moveTo(x, Y(b.h)); c.lineTo(x, Y(b.l)); c.stroke();
+    c.fillRect(x - bw * 0.3, Math.min(Y(b.o), Y(b.c)), bw * 0.6, Math.max(2, Math.abs(Y(b.o) - Y(b.c))));
+  });
+}
+
+function frame() {
+  drawCandles();
+  requestAnimationFrame(frame);
+}
+
+// UI Setup & Controls
+$('engineBtn').onclick = () => {
+  X.run = !X.run;
+  $('engineBtn').textContent = X.run ? 'STOP MEGAN' : 'START MEGAN';
+  $('engineBtn').classList.toggle('on', X.run);
+  addLog('win', X.run ? 'MEGAN SCALPER STARTED' : 'MEGAN SCALPER PAUSED');
+};
+
+$('scalpBtn').onclick = () => {
+  X.scalp = !X.scalp;
+  $('scalpBtn').classList.toggle('on', X.scalp);
+};
+
+$('btnUp').onclick = () => { X.an = { side: 'BUY', slD: 0.001, tpD: 0.002 }; maybeTrade(); };
+$('btnDn').onclick = () => { X.an = { side: 'SELL', slD: 0.001, tpD: 0.002 }; maybeTrade(); };
+
+boot();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
