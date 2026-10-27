@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>QuantBot — Morgan AI Quant Trading Engine · B6</title>
+<style>
+:root{
+  --bg:#f4f2ec; --panel:#ffffff; --ink:#181826; --mut:#8a8a96; --line:#e4e1d8;
+  --red:#e5484d; --green:#18a058; --blue:#3b6fe0; --purple:#7c5cff; --teal:#0fa3a3;
+  --amber:#e8a13c; --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:10px;overflow-x:hidden}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#cfcbc0}
+a{color:inherit;text-decoration:none}
+button{font-family:var(--mono);cursor:pointer}
+
+/* ---------- TOP BAR ---------- */
+#topbar{display:flex;align-items:center;gap:14px;background:var(--panel);border-bottom:1px solid var(--line);
+  padding:5px 12px;position:sticky;top:0;z-index:50}
+.logo{display:flex;align-items:center;gap:6px;font-weight:800;font-size:12px;letter-spacing:.5px}
+.logo .mark{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,var(--purple),var(--teal));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px}
+.tb-stat{display:flex;flex-direction:column;line-height:1.15}
+.tb-stat .v{font-size:12px;font-weight:700}
+.tb-stat .l{font-size:7.5px;color:var(--mut);letter-spacing:.5px}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.chip{font-size:7.5px;padding:2px 7px;border-radius:3px;letter-spacing:.6px;font-weight:700;border:1px solid var(--line)}
+.chip.live{background:#e9f9f0;color:var(--green);border-color:#bfe8d0}
+.chip.warn{background:#fdf0e7;color:var(--amber);border-color:#f3d9bd}
+.chip.off{background:#f3f3f3;color:var(--mut)}
+.clock{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.conn-btn{background:var(--ink);color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:8.5px;letter-spacing:.6px;font-weight:700}
+.conn-btn:hover{background:var(--purple)}
+.engine-btn{border:1px solid var(--line);background:#fff;padding:5px 10px;border-radius:4px;font-size:8.5px;font-weight:700;letter-spacing:.6px}
+.engine-btn.on{background:var(--green);color:#fff;border-color:var(--green)}
+
+/* ---------- TICKER ---------- */
+#ticker{background:var(--ink);color:#cfd0dc;overflow:hidden;white-space:nowrap;padding:3px 0;font-size:8px;letter-spacing:.4px}
+#ticker span{display:inline-block;padding:0 22px}
+#ticker .g{color:#7ee2a8}#ticker .r{color:#ff8a8a}#ticker .b{color:#8fb4ff}#ticker .p{color:#c9b8ff}
+
+/* ---------- GRID ---------- */
+#grid{display:grid;grid-template-columns:230px 1fr 250px 320px;gap:4px;padding:4px}
+#grid2{display:grid;grid-template-columns:150px 1fr 240px;gap:4px;padding:0 4px 4px}
+#grid3{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:4px;padding:0 4px 4px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 8px;position:relative;overflow:hidden}
+.ptitle{font-size:7.5px;letter-spacing:1.1px;color:var(--mut);font-weight:700;margin-bottom:4px;
+  display:flex;justify-content:space-between;align-items:center}
+.ptitle .dot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---------- P&L PANEL ---------- */
+.pnl-big{font-size:30px;font-weight:800;line-height:1;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.pnl-big.up{color:var(--green)}.pnl-big.dn{color:var(--red)}
+.pnl-sub{display:flex;gap:8px;font-size:8px;color:var(--mut);flex-wrap:wrap}
+.pnl-sub b{color:var(--ink)}
+.eq-spark{width:100%;height:44px;margin-top:6px}
+.desk-strip{display:flex;gap:3px;margin-top:6px;flex-wrap:wrap}
+.desk-strip i{width:9px;height:9px;border-radius:2px;display:block}
+.stat-row{display:flex;justify-content:space-between;font-size:8px;padding:1.5px 0;color:var(--mut)}
+.stat-row b{color:var(--ink)}
+
+/* ---------- LOGS ---------- */
+#logs{height:196px;overflow-y:auto;font-size:8.2px;line-height:1.55}
+.log{display:flex;gap:6px;padding:1px 0;border-bottom:1px dashed #f0eee6}
+.log .t{color:var(--mut);flex:0 0 40px}
+.tag{flex:0 0 44px;text-align:center;border-radius:2px;font-weight:700;font-size:7px;padding:1px 0;letter-spacing:.4px}
+.tag.fill{background:#e7f0ff;color:var(--blue)}.tag.pass{background:#f0f0f2;color:var(--mut)}
+.tag.win{background:#e9f9f0;color:var(--green)}.tag.loss{background:#fdeaea;color:var(--red)}
+.tag.bet{background:#f1ecff;color:var(--purple)}.tag.sys{background:#e6f7f7;color:var(--teal)}
+.log .m{flex:1;color:#3a3a48}
+.log .amt{font-weight:700;flex:0 0 52px;text-align:right}
+
+/* ---------- SIGNAL STACK ---------- */
+.sig-big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.sig-delta{font-size:9px;font-weight:700}
+.bar-row{display:flex;align-items:center;gap:5px;margin-top:3.5px;font-size:7.5px}
+.bar-row .n{flex:0 0 58px;color:var(--mut);letter-spacing:.4px}
+.bar-row .b{flex:1;height:5px;background:#f0eee6;border-radius:2px;overflow:hidden}
+.bar-row .b i{display:block;height:100%;border-radius:2px;transition:width .4s,background .4s}
+.bar-row .v{flex:0 0 34px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- SPOT ENGINE ---------- */
+#candles{width:100%;height:196px;display:block}
+.obook{font-size:7.5px;margin-top:4px;height:64px;overflow:hidden;position:relative}
+.ob-row{display:flex;gap:6px;line-height:1.5}
+.ob-row .p{flex:0 0 58px;text-align:right;color:var(--mut)}
+.ob-row .s{color:#b9b6ab}
+.ob-row.ask .p{color:var(--red)}.ob-row.bid .p{color:var(--green)}
+
+/* ---------- SIDE STACK ---------- */
+.stack{display:flex;flex-direction:column;gap:4px}
+.mini{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:4px 7px}
+.mini .h{display:flex;justify-content:space-between;font-size:7.5px;color:var(--mut);letter-spacing:.5px}
+.mini .val{font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:1px}
+.spark{width:100%;height:22px;display:block;margin-top:2px}
+.mini.neg{border-left:3px solid var(--red)}.mini.pos{border-left:3px solid var(--green)}
+
+/* ---------- ORB ---------- */
+#orbPanel{display:flex;flex-direction:column}
+#orb{flex:1;width:100%;min-height:300px;display:block}
+.orb-state{text-align:center;font-size:9px;letter-spacing:1.5px;font-weight:700;margin-top:2px}
+.orb-sub{text-align:center;font-size:7.5px;color:var(--mut);margin-top:1px;letter-spacing:.4px}
+
+/* ---------- RIGHT RAIL ---------- */
+.rpanel{display:flex;flex-direction:column;gap:4px}
+.rcard{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 9px}
+.rcard .h{font-size:7.5px;letter-spacing:1px;color:var(--mut);font-weight:700;display:flex;justify-content:space-between}
+.cd{font-size:24px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;margin:2px 0}
+.wr-bar{display:flex;height:8px;border-radius:3px;overflow:hidden;margin-top:4px}
+.wr-bar .w{background:var(--green)}.wr-bar .l{background:var(--red)}
+.wr-lbl{display:flex;justify-content:space-between;font-size:8.5px;font-weight:700;margin-top:2px}
+.big-prob{font-size:22px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
+.edge{text-align:center;font-size:9px;font-weight:700;margin-top:1px}
+.stake{text-align:center;font-size:15px;font-weight:800;color:var(--purple);margin-top:2px}
+.action-row{display:flex;gap:3px;margin-top:5px}
+.action-row button{flex:1;border:1px solid var(--line);background:#fff;font-size:8px;font-weight:700;padding:4px 0;border-radius:3px;letter-spacing:.5px}
+.action-row button.primary{background:var(--purple);color:#fff;border-color:var(--purple)}
+.action-row button:disabled{opacity:.35;cursor:not-allowed}
+.streak-lbl{text-align:center;font-size:8px;color:var(--mut);margin-top:3px;letter-spacing:.5px}
+.streak-lbl b{font-size:11px}
+
+/* ---------- FILLS ---------- */
+#fills{width:100%;border-collapse:collapse;font-size:8px}
+#fills th{font-size:7px;letter-spacing:.8px;color:var(--mut);text-align:left;padding:2px 4px;border-bottom:1px solid var(--line)}
+#fills td{padding:2px 4px;border-bottom:1px solid #f4f2ea;font-variant-numeric:tabular-nums}
+#fills tr.win td{background:#f2fbf5}#fills tr.loss td{background:#fdf3f3}
+.pill{font-size:6.5px;font-weight:700;padding:1px 5px;border-radius:2px;letter-spacing:.4px}
+.pill.up{background:#e9f9f0;color:var(--green)}.pill.dn{background:#fdeaea;color:var(--red)}
+.pill.st{background:#f1ecff;color:var(--purple)}
+
+/* ---------- CHARTS ROW 3 ---------- */
+#modelChart,#landing{width:100%;height:150px;display:block}
+.legend{display:flex;gap:10px;font-size:7px;color:var(--mut);justify-content:flex-end}
+.legend i{display:inline-block;width:8px;height:3px;border-radius:2px;margin-right:3px;vertical-align:middle}
+
+/* ---------- BOTTOM MARQUEE ---------- */
+#btm{position:sticky;bottom:0;background:var(--ink);color:#cfd0dc;font-size:7.5px;padding:4px 0;overflow:hidden;white-space:nowrap;letter-spacing:.5px;z-index:40}
+#btm span{padding:0 24px}
+#btm .g{color:#7ee2a8}#btm .r{color:#ff8a8a}#btm .b{color:#8fb4ff}
+
+/* ---------- MODAL ---------- */
+#modal{position:fixed;inset:0;background:rgba(20,20,30,.55);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px)}
+#modal.open{display:flex}
+.mbox{background:#fff;border-radius:8px;width:340px;max-width:92vw;padding:18px;font-family:var(--mono)}
+.mbox h3{font-size:12px;letter-spacing:1px;margin-bottom:2px}
+.mbox .sub{font-size:8px;color:var(--mut);margin-bottom:12px}
+.mode-sel{display:flex;gap:5px;margin-bottom:12px}
+.mode-sel button{flex:1;border:1px solid var(--line);background:#fff;padding:7px 0;border-radius:4px;font-size:8.5px;font-weight:700;letter-spacing:.5px}
+.mode-sel button.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fld{margin-bottom:9px}
+.fld label{display:block;font-size:7.5px;letter-spacing:.8px;color:var(--mut);margin-bottom:3px;font-weight:700}
+.fld input,.fld select{width:100%;border:1px solid var(--line);border-radius:4px;padding:7px 8px;font-family:var(--mono);font-size:9.5px;outline:none}
+.fld input:focus{border-color:var(--purple)}
+.mbtns{display:flex;gap:6px;margin-top:14px}
+.mbtns button{flex:1;padding:8px 0;border-radius:4px;font-size:9px;font-weight:700;border:none;letter-spacing:.6px}
+.mbtns .go{background:var(--green);color:#fff}
+.mbtns .cancel{background:#f0f0f2;color:var(--mut)}
+.note{font-size:7.5px;color:var(--mut);margin-top:10px;line-height:1.5}
+.toast{position:fixed;top:44px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  font-size:9px;padding:8px 16px;border-radius:5px;z-index:200;display:none;letter-spacing:.4px}
+
+@media (max-width:1100px){
+  #grid{grid-template-columns:1fr 1fr}
+  #grid2{grid-template-columns:1fr}
+  #grid3{grid-template-columns:1fr}
+  .stack{display:grid;grid-template-columns:repeat(3,1fr)}
+}
+
+/* ===== phone: everything on one screen, nothing to scroll ===== */
+html,body{height:100%;overflow:hidden}
+#app{height:100dvh;display:flex;flex-direction:column;gap:3px;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 2px)}
+#app>*{flex:none}
+#topbar{gap:5px;padding:3px 6px;position:static}
+#topbar .logo{font-size:0;gap:0}#topbar .logo .mark{font-size:9px}
+#topbar>div:nth-child(3),#topbar>div:nth-child(5){display:none}
+.tb-stat .v{font-size:11px}.tb-right{gap:3px}.chip{padding:1px 4px;font-size:6.5px}
+#feedChip{font-size:0}#feedChip::before{content:'\25CF';font-size:10px}
+.engine-btn,.conn-btn{padding:4px 6px;font-size:7px}
+#ticker{padding:1px 0;font-size:7px}
+#ctlw{position:relative}#ctl{display:flex;gap:3px;align-items:center;padding:0 3px}
+#q{flex:1;min-width:0;border:1px solid var(--line);border-radius:4px;padding:4px 6px;font:inherit;font-size:9px;background:var(--panel);color:var(--ink)}
+#tfs{display:flex;gap:2px}.tf,.cb{border:1px solid var(--line);background:var(--panel);color:var(--mut);border-radius:4px;padding:4px 5px;font-size:8px;font-weight:700}
+.tf.on,.cb.act{background:var(--purple);color:#fff;border-color:var(--purple)}.cb{color:var(--ink);font-size:10px}
+#list{position:absolute;left:3px;right:3px;top:100%;z-index:90;background:var(--panel);border:1px solid var(--line);border-radius:5px;max-height:38dvh;overflow:auto;display:none;font-size:10px}
+#list div{padding:7px 8px;border-bottom:1px solid var(--line)}
+#grid2{flex:1 1 0!important;min-height:0;display:grid!important;grid-template-columns:58px 1fr 70px!important;gap:3px!important;padding:0 3px!important}
+#grid2 .stack{display:flex!important;flex-direction:column;justify-content:space-between;gap:2px;min-height:0;overflow:hidden}
+.mini{flex:1;min-height:0;padding:2px 3px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.mini .h span{font-size:5.6px;letter-spacing:0}.mini .val{font-size:9px;margin:0}.spark{height:11px;margin-top:1px}
+#orbPanel{min-height:0;padding:3px;position:relative}#orbPanel .ptitle{display:none}
+#orb{flex:1 1 0;height:0;min-height:0}.orb-state{font-size:7.5px;letter-spacing:.4px}.orb-sub{font-size:6.4px;line-height:1.25;max-height:33px;overflow:hidden}
+.rpanel{display:flex;flex-direction:column;gap:2px;min-height:0;overflow:hidden}
+.rcard{flex:1;min-height:0;padding:2px 3px;overflow:hidden}.rcard:last-child{flex:2.1}.rcard .h{font-size:5.6px;letter-spacing:.3px}
+.cd{font-size:13px;margin:0}.big-prob{font-size:13px}.edge{font-size:6.4px}.stake{font-size:11px;margin:0}.wr-bar{height:5px;margin-top:2px}.wr-lbl{font-size:6.4px}.streak-lbl{font-size:6px;margin:0}
+.action-row{margin-top:2px;gap:2px}.action-row button{font-size:6.5px;padding:3px 0}
+#app>.panel{padding:3px 5px}#app>.panel .ptitle{font-size:6.5px;margin-bottom:2px}#candles{height:clamp(150px,23dvh,215px);touch-action:none}.obook{display:none}
+#tabs{display:flex;gap:2px;padding:0 3px}#tabs button{flex:1;font-size:7px;padding:3px 0;border:1px solid var(--line);background:var(--panel);color:var(--mut);border-radius:3px;font-weight:700}
+#tabs button.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+#tabBody{height:clamp(112px,19dvh,150px);padding:0 3px;overflow:hidden}#tabBody>.panel{display:none;height:100%;overflow:auto;padding:4px 6px}#tabBody>.panel.act{display:block}
+#logs{height:88px}.pnl-big{font-size:20px;margin:0 0 2px}#eqSpark{height:26px;margin-top:2px}.desk-strip{margin-top:2px}
+#modelChart,#landing{height:84px}.sig-big{font-size:18px}.bar-row{margin-top:1.5px}
+.hidden{display:none}#voiceCaption{position:absolute;left:4px;right:4px;bottom:2px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:2px 5px;font-size:8px;z-index:5;transition:opacity .3s}
+#msg{position:fixed;inset:0;z-index:120;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;padding:20px;background:rgba(244,242,236,.97)}
+#msg button{background:var(--purple);color:#fff;border:none;padding:12px 20px;font-size:12px;border-radius:5px;font-family:var(--mono)}
+/* ===== dark theme (easy on the eyes); the toggle button switches back to your original light look ===== */
+body.dark{--bg:#0b0f14;--panel:#121821;--ink:#e6edf3;--mut:#8b949e;--line:#232b36}
+body.dark #msg{background:rgba(11,15,20,.97)}
+body.dark .engine-btn,body.dark .action-row button{background:#1b2430;color:var(--ink)}body.dark .conn-btn{background:var(--purple)}
+body.dark .chip.live{background:#10261c;border-color:#1d4d35}body.dark .chip.warn{background:#2a2010;border-color:#4d3a1d}body.dark .chip.off{background:#1b2430}
+body.dark .tag{background:#1b2430!important}body.dark .log{border-bottom-color:#1b2430}body.dark .log .m{color:#c9d1d9}
+body.dark .bar-row .b,body.dark .desk-strip i{background-color:#1b2430}body.dark #fills td{border-bottom-color:#1b2430}body.dark #fills tr.win td{background:#10261c}body.dark #fills tr.loss td{background:#2a1417}
+body.dark .pill.up{background:#10261c}body.dark .pill.dn{background:#2a1417}body.dark .pill.st{background:#231d3a}body.dark #ticker{background:#0f141b}body.dark .toast{background:#1b2430}body.dark .action-row button.primary{background:var(--purple);color:#fff}
+.ot{width:100%;border-collapse:collapse;font-size:8px}.ot th{font-size:7px;letter-spacing:.6px;color:var(--mut);text-align:left;padding:2px 3px;border-bottom:1px solid var(--line)}.ot td{padding:3px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.ot tr.win td{background:#f2fbf5}.ot tr.loss td{background:#fdf3f3}.cx{border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:3px;padding:1px 5px;font-size:9px}
+#topbar{flex-wrap:wrap;row-gap:2px}.tb-right{flex:1 1 100%;margin-left:0;justify-content:flex-end;flex-wrap:wrap;gap:3px}#connBtn{order:-1;margin-right:auto;white-space:nowrap}.engine-btn,.conn-btn{white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="topbar">
+  <div class="logo"><span class="mark">Q</span>QuantBot <span style="color:var(--mut);font-weight:400;font-size:8px">× MORGAN AI</span></div>
+  <div class="tb-stat"><span class="v" id="tbPrice">82,490.0</span><span class="l">SYMBOL</span></div>
+  <div class="tb-stat"><span class="v" id="tbChg" style="color:var(--green)">+0.00%</span><span class="l">Δ BAR</span></div>
+  <div class="tb-stat"><span class="v" id="tbProb">50.0%</span><span class="l">MEGAN P(UP)</span></div>
+  <div class="tb-stat"><span class="v" id="tbFlt">+0.00</span><span class="l">FLOAT</span></div>
+  <div class="tb-stat"><span class="v clock" id="tbClock">00:00:00</span><span class="l">UTC</span></div>
+  <div class="tb-right">
+    <span class="chip live" id="feedChip">● LOGIN</span>
+    <span class="chip off" id="modeChip">PAPER</span>
+    <button class="engine-btn" id="engineBtn">START MEGAN</button>
+    <button class="engine-btn" id="scalpBtn">⚡ SCALP</button>
+    <button class="engine-btn" id="apBtn">🎯 AUTO PAIR</button>
+    <button class="conn-btn" id="connBtn">LOGIN CTRADER</button>
+  </div>
+</div>
+
+
+<div id="ticker"><div id="tickerInner"></div></div>
+
+<div id="ctlw"><div id="ctl"><input id="q" placeholder="Search any pair: EURUSD, BTCUSD..." autocomplete="off"><div id="tfs"></div><button id="vo" class="cb">&#128263;</button><button id="mic" class="cb">&#127908;</button><button id="th" class="cb">&#9790;</button></div><div id="list"></div></div>
+<div id="grid2">
+  <div class="stack" id="sideStack"></div>
+  <div class="panel" id="orbPanel">
+    <div class="ptitle"><span><span class="dot"></span>MEGAN BRAIN — INPUTS · CORTEX · DECISIONS</span><span>LIVE</span></div>
+    <canvas id="orb"></canvas>
+    <div class="orb-state" id="orbState">SCANNING MARKET STRUCTURE</div>
+    <div class="orb-sub" id="orbSub">Login to start</div>
+    <div id="voiceCaption" class="hidden"></div>
+  </div>
+  <div class="rpanel" id="rightRail"></div>
+</div>
+
+
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>MARKET — LIVE FROM BROKER</span><span id="spotPrice">82,490.0</span></div>
+    <canvas id="candles"></canvas>
+    <div class="obook" id="obook"></div>
+  </div>
+<div id="tabs"></div>
+<div id="tabBody">
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>P&amp;L — ACCOUNT</span><span id="pnlMode">PAPER</span></div>
+    <div class="pnl-big up" id="pnlBig">$0.00</div>
+    <div class="pnl-sub">
+      <span>OPEN <b id="stOpen">0</b></span><span>POS <b id="stPos">0</b></span>
+      <span>WINS <b id="stWins" style="color:var(--green)">0</b></span><span>LOSSES <b id="stLoss" style="color:var(--red)">0</b></span>
+    </div>
+    <div class="pnl-sub" style="margin-top:2px">
+      <span>WIN RATE <b id="stWr">—</b></span><span>STREAK <b id="stStreak">0</b></span>
+      <span>STAKE <b id="stStake">0.01</b></span>
+    </div>
+    <canvas class="eq-spark" id="eqSpark"></canvas>
+    <div class="desk-strip" id="deskStrip"></div>
+    <div style="margin-top:6px">
+      <div class="stat-row"><span>BALANCE</span><b id="mBank">$0.00</b></div>
+      <div class="stat-row"><span>LOT SIZE</span><b id="mExp">$0</b></div>
+      <div class="stat-row"><span>BRAIN CONF</span><b id="mEdge">+0.0¢</b></div>
+      <div class="stat-row"><span>FEES PAID</span><b id="mFees">$0.00</b></div>
+    </div>
+  </div>
+
+  
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>MEGAN LOG — LIVE</span><span id="logCount">0</span></div>
+    <div id="logs"></div>
+  </div>
+
+  
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>SIGNAL STACK</span><span>BRAIN INPUTS</span></div>
+    <div style="display:flex;align-items:baseline;gap:8px">
+      <div class="sig-big" id="sigBig">50.0%</div>
+      <div class="sig-delta" id="sigDelta" style="color:var(--mut)">+0.0¢</div>
+    </div>
+    <div id="sigBars"></div>
+  </div>
+
+  
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>TRADES — LIVE FROM BROKER</span><span id="fillCount">0 TODAY</span></div>
+    <div id="openPos"></div>
+    <div class="ptitle" style="margin-top:5px"><span>HISTORY</span></div>
+    <table id="fills">
+      <thead><tr><th>UTC</th><th>ACTION</th><th>PRICE</th><th>LOTS</th><th>RR</th><th>RESULT</th></tr></thead>
+      <tbody id="fillBody"></tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>MEGAN VS RULES — P(UP)</span>
+      <span class="legend"><span><i style="background:var(--purple)"></i>MEGAN</span><span><i style="background:#c9c6bb"></i>RULES</span></span></div>
+    <canvas id="modelChart"></canvas>
+  </div>
+  <div class="panel">
+    <div class="ptitle"><span><span class="dot"></span>PROJECTED RANGE — NEXT BARS</span><span id="lcTime">0:00 LEFT</span></div>
+    <canvas id="landing"></canvas>
+    <div class="legend" style="margin-top:3px;justify-content:center">
+      <span><i style="background:var(--green)"></i>UP</span>
+      <span><i style="background:var(--red)"></i>DOWN</span>
+      <span><i style="background:var(--ink)"></i>PRICE</span>
+    </div>
+  </div>
+</div>
+</div>
+<div id="msg"><div style="font-size:14px;font-weight:700">MORGAN AI QUANT ENGINE</div><div id="mt" style="color:var(--mut);max-width:290px;font-size:10px">Tap to log in with cTrader, pick your account and allow access.</div><button id="login">LOGIN WITH CTRADER</button></div><div class="toast" id="toast"></div>
+<script src="megan-brain.js"></script>
+<script>
+
+/* ============================================================
+   MORGAN AI QUANT ENGINE — 5-minute UP/DOWN world resolution
+   ============================================================ */
+const S = {
+  running:false, mode:'PAPER', connected:false,
+  price:82490.0, anchor:82490.0, startPrice:82490.0,
+  round:0, roundLen:300, tLeft:300, phase:'SCAN',
+  prob:0.5, probHist:[], mktHist:[],
+  bankroll:10000, pnl:0, openPos:null, stake:300,
+  wins:0, losses:0, streak:0, fees:0, maxDD:1500, dd:0,
+  dayStart:10000, candles:[], fills:[], logs:[],
+  eqCurve:[10000], sig:{}, orbT:0, msgId:0
+};
+const $=id=>document.getElementById(id);
+const fmt$=v=>(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtP=v=>v.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+/* ---------- sizing ---------- */
+function fit(cv){const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1,w=Math.round(r.width*d),hh=Math.round(r.height*d);if(cv.width!==w||cv.height!==hh){cv.width=w;cv.height=hh}const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return c}
+function cw(cv){return cv.getBoundingClientRect().width}
+function chh(cv){return cv.getBoundingClientRect().height}
+
+/* ---------- logs & ticker ---------- */
+function addLog(tag,msg,amt){
+  S.logs.unshift({t:new Date().toISOString().substr(11,8),tag,msg,amt});
+  if(S.logs.length>60)S.logs.pop();
+  const el=$('logs');el.innerHTML=S.logs.map(l=>
+    `<div class="log"><span class="t">${l.t}</span><span class="tag ${l.tag}">${l.tag.toUpperCase()}</span><span class="m">${l.msg}</span><span class="amt" style="color:${l.amt&&l.amt[0]==='-'?'var(--red)':'var(--green)'}">${l.amt||''}</span></div>`).join('');
+  $('logCount').textContent=S.logs.length;
+}
+const tickerMsgs=['PASS EDGE −0.4¢ UNDER 3¢ — NO TICKET','PASS EDGE +1.5¢ UNDER 3¢ — NO TICKET','PASS EDGE −0.3¢ UNDER 3¢ — NO TICKET','PASS $506 −0.2¢ UNDER 3¢ — NO TICKET','WATCH #1228 OPENS — PRICE TO BEAT $82,490','20,480 WORLDS RE-SEEDED','75% SH @ 47¢ — $506 +9.0¢ · WORLDS 50.04','49% SH @ 52¢ — $506 +3.5¢ · WORLDS 53.94','FILLED 47% @ 52¢','THE DESK NEVER PREDICTS THE PRICE — IT MEASURES WHO BLINKS FIRST','MORGAN AI ENGINE ONLINE · EVERY WORLD COLLAPSED INTO ONE'];
+function buildTicker(){
+  const spans=tickerMsgs.map((m,i)=>{const c=i%4;const cls=['g','r','b','p'][c];
+    return `<span class="${cls}">${m}</span>`;}).join('');
+  $('tickerInner').innerHTML=spans+spans;
+  $('btmInner').innerHTML=spans+spans;
+  const anim=(el)=>{el.style.animation='none';void el.offsetWidth;
+    el.style.cssText+=`;display:inline-block;animation:marq ${el.children.length*9}s linear infinite;`;
+    el.style.whiteSpace='nowrap';};
+  $('tickerInner').style.animation='marq 120s linear infinite';$('tickerInner').style.display='inline-block';
+  $('btmInner').style.animation='marq 120s linear infinite';$('btmInner').style.display='inline-block';
+}
+const st=document.createElement('style');st.textContent='@keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}';document.head.appendChild(st);
+
+
+function pushFill(t,action,pk,shares,edge,result){
+  S.fills.unshift({t,action,pk,shares,edge,result});
+  if(S.fills.length>40)S.fills.pop();
+}
+function renderFills(){
+  $('fillBody').innerHTML=S.fills.map(f=>{
+    const cls=f.result[0]==='+'?'win':f.result[0]==='-'?'loss':'';
+    const pill=f.action.includes('UP')?'up':f.action.includes('DOWN')?'dn':'st';
+    return `<tr class="${cls}"><td>${f.t}</td><td><span class="pill ${pill}">${f.action}</span></td><td>${f.pk}</td><td>${f.shares}</td><td>${f.edge}</td><td style="font-weight:700;color:${f.result[0]==='+'?'var(--green)':f.result[0]==='-'?'var(--red)':'var(--mut)'}">${f.result}</td></tr>`;
+  }).join('');
+  $('fillCount').textContent=(S.wins+S.losses)+' TODAY';
+}
+function renderSignals(){
+  const p=(S.prob*100).toFixed(1)+'%';
+  const sb=$('sigBig');sb.textContent=p;
+  sb.style.color=S.prob>=0.55?'var(--green)':S.prob<=0.45?'var(--red)':'var(--ink)';
+  const d=((S.prob-0.5)*100);const sd=$('sigDelta');
+  sd.textContent=(d>=0?'+':'−')+Math.abs(d).toFixed(1)+'¢';sd.style.color=d>=0?'var(--green)':'var(--red)';
+  $('sigBars').innerHTML=Object.entries(S.sig).map(([k,v])=>{
+    const col=v>0.55?'var(--green)':v<0.45?'var(--red)':'var(--blue)';
+    return `<div class="bar-row"><span class="n">${k}</span><span class="b"><i style="width:${v*100}%;background:${col}"></i></span><span class="v">${(v*100).toFixed(1)}</span></div>`;
+  }).join('');
+}
+function drawModel(){
+  const cv=$('modelChart'),c=fit(cv),w=cw(cv),h=chh(cv);
+  c.clearRect(0,0,w,h);
+  const draw=(hist,col,lw,dash)=>{
+    c.strokeStyle=col;c.lineWidth=lw;if(dash)c.setLineDash([3,3]);else c.setLineDash([]);
+    c.beginPath();
+    hist.forEach((v,i)=>{const x=i/(Math.max(1,hist.length-1))*w,y=h-(v)*h;i?c.lineTo(x,y):c.moveTo(x,y);});
+    c.stroke();c.setLineDash([]);
+  };
+  c.strokeStyle='#eeece4';c.lineWidth=1;c.beginPath();c.moveTo(0,h/2);c.lineTo(w,h/2);c.stroke();
+  draw(S.mktHist,'#c9c6bb',1,true);
+  draw(S.probHist,'#7c5cff',1.6,false);
+  // projection
+  if(S.probHist.length){
+    const last=S.probHist[S.probHist.length-1];
+    c.strokeStyle='rgba(124,92,255,.3)';c.setLineDash([2,4]);c.beginPath();
+    c.moveTo(w-1,h-last*h);c.lineTo(w,h-(S.prob)*h);c.stroke();c.setLineDash([]);
+  }
+  c.fillStyle='#8a8a96';c.font='7px monospace';c.fillText('MEGAN '+(S.prob*100).toFixed(1)+'%',4,10);
+  c.fillText('RULES '+((S.mktHist[S.mktHist.length-1]||0.5)*100).toFixed(1)+'%',4,18);
+}
+function drawOrbCore(){
+  const cv=$('orb'),c=fit(cv),w=cw(cv),h=chh(cv);
+  c.clearRect(0,0,w,h);
+  const cx=w/2,cy=h/2,R=Math.min(w,h)*0.34;
+  S.orbT+=0.012;
+  // outer wires
+  c.strokeStyle='rgba(90,80,160,.28)';c.lineWidth=0.7;
+  for(let k=0;k<14;k++){
+    c.beginPath();
+    for(let a=0;a<=Math.PI*2+0.1;a+=0.12){
+      const rr=R*1.35+Math.sin(a*3+S.orbT*2+k)*10;
+      const x=cx+Math.cos(a)*rr*1.35,y=cy+Math.sin(a)*rr*0.55+Math.sin(k+S.orbT)*6;
+      a===0?c.moveTo(x,y):c.lineTo(x,y);
+    }
+    c.stroke();
+  }
+  // orb body: color encodes model confidence
+  const conf=Math.abs(S.prob-0.5)*2; // 0..1
+  const hue=S.prob>=0.5?210:8;        // blue=up-confident, red=down-confident
+  for(let i=14;i>0;i--){
+    const rr=R*(i/14);
+    const a=0.05+conf*0.10+(1-i/14)*0.12;
+    const g=c.createRadialGradient(cx,cy,rr*0.2,cx,cy,rr);
+    g.addColorStop(0,`hsla(${hue},85%,60%,${a*0.5})`);
+    g.addColorStop(1,`hsla(${(hue+40)%360},80%,55%,${a})`);
+    c.fillStyle=g;c.beginPath();c.arc(cx,cy,rr,0,7);c.fill();
+  }
+  // threads
+  const strands=S.phase==='LOCK'?90:60;
+  for(let i=0;i<strands;i++){
+    const ph=S.orbT*(0.6+(i%5)*0.14)+i;
+    const tilt=Math.sin(i*0.7)*0.9;
+    c.strokeStyle=`hsla(${(hue+i*3)%360},80%,${45+conf*15}%,${0.16+conf*0.2})`;
+    c.lineWidth=0.6+(i%3)*0.3;
+    c.beginPath();
+    for(let t=0;t<=1.001;t+=0.05){
+      const ang=t*Math.PI*2;
+      const rr=R*(0.25+0.75*Math.sin(t*Math.PI));
+      let x=Math.cos(ang)*rr,y=Math.sin(ang)*rr*Math.abs(Math.cos(tilt))+Math.sin(ph+t*6)*R*0.12*conf;
+      // rotate slowly around vertical axis
+      const rot=S.orbT*0.5+i;
+      const x2=x*Math.cos(rot*0.3)-0*1;const z=x*Math.sin(rot*0.3);
+      x=x2;y=y*Math.cos(tilt*0.4)+z*Math.sin(tilt*0.4);
+      t===0?c.moveTo(cx+x,cy+y):c.lineTo(cx+x,cy+y);
+    }
+    c.stroke();
+  }
+  // core
+  const core=R*(0.10+conf*0.10);
+  const cg=c.createRadialGradient(cx,cy,0,cx,cy,core*2.5);
+  cg.addColorStop(0,`hsla(${hue},95%,55%,.9)`);cg.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle=cg;c.beginPath();c.arc(cx,cy,core*2.5,0,7);c.fill();
+  // orbit particles
+  for(let i=0;i<20;i++){
+    const a=S.orbT*(1+i*0.07)+i*2.1;
+    const rr=R*(1.05+Math.sin(i)*0.15);
+    c.fillStyle=`hsla(${(hue+180)%360},80%,60%,.5)`;
+    c.beginPath();c.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr*0.4,1.2,0,7);c.fill();
+  }
+  const state=$('orbState');
+  if(S.phase==='LOCK'){state.textContent='◉ LOCKED — WORLD IN FLIGHT';state.style.color='var(--purple)';}
+  else if(conf>0.45){state.textContent=(S.prob>=0.5?'▲ HIGH CONVICTION LONG':'▼ HIGH CONVICTION SHORT');state.style.color=S.prob>=0.5?'var(--green)':'var(--red)';}
+  else{state.textContent='SCANNING MARKET STRUCTURE';state.style.color='var(--blue)';}
+  $('orbSub').textContent=`20,480 worlds simulated · confidence ${(conf*100).toFixed(0)}% · round #${S.round}`;
+}
+function renderPnlCore(){
+  const el=$('pnlBig');el.textContent=fmt$(S.pnl);el.className='pnl-big '+(S.pnl>=0?'up':'dn');
+  $('stOpen').textContent=S.openPos?1:0;
+  $('stPos').textContent=S.openPos?S.stake:0;
+  $('stWins').textContent=S.wins;$('stLoss').textContent=S.losses;
+  const n=S.wins+S.losses;
+  $('stWr').textContent=n?((S.wins/n*100).toFixed(1)+'%'):'—';
+  $('stStreak').textContent=S.streak;$('stStake').textContent='$'+S.stake;
+  $('mBank').textContent=fmt$(S.bankroll);
+  $('mExp').textContent=fmt$(S.openPos?S.stake:0);
+  $('mEdge').textContent=(S.prob>=0.5?'+':'−')+((Math.abs(S.prob-0.5)*100).toFixed(1))+'¢';
+  $('mFees').textContent=fmt$(S.fees);
+  // equity spark
+  const cv=$('eqSpark'),c=fit(cv),w=cw(cv),h=chh(cv);
+  c.clearRect(0,0,w,h);
+  const mn=Math.min(...S.eqCurve),mx=Math.max(...S.eqCurve),rg=Math.max(1,mx-mn);
+  c.beginPath();
+  S.eqCurve.forEach((v,i)=>{const x=i/(S.eqCurve.length-1)*w,y=h-4-((v-mn)/rg)*(h-8);i?c.lineTo(x,y):c.moveTo(x,y);});
+  c.strokeStyle=S.pnl>=0?'#18a058':'#e5484d';c.lineWidth=1.4;c.stroke();
+  c.lineTo(w,h);c.lineTo(0,h);c.closePath();
+  const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,S.pnl>=0?'rgba(24,160,88,.18)':'rgba(229,72,77,.18)');g.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle=g;c.fill();
+  // desk strip
+  $('deskStrip').innerHTML=Array.from({length:24},()=>{const r=Math.random();
+    return `<i style="background:${r>0.55?'var(--green)':r>0.3?'#dcd9cf':'var(--red)'}"></i>`;}).join('');
+}
+let toastT=null;
+function toast(msg){
+  const t=$('toast');t.textContent=msg;t.style.display='block';
+  clearTimeout(toastT);toastT=setTimeout(()=>t.style.display='none',3200);
+}
+
+
+/* ================= REAL ENGINE: cTrader login + live data + Megan brain ================= */
+const CID='40001_PHI0xB6Yq8m5wkmErP66MQwBmizcbSendTkMCWX0Bcfp1LPyS8',WORKER='https://mute-shadow-9594.katebasadat.workers.dev/',LS=localStorage;
+const X={ws:null,seq:1,tok:LS.mq_tok||'',sec:LS.mq_sec||'',env:LS.mq_env||'demo',acct:+LS.mq_acct||0,accs:[],syms:[],cur:null,digits:5,bars:[],bid:0,ask:0,bal:0,bal0:null,open:0,stop:false,an:null,tf:5,run:false,think:false,brain:null,news:null,ph:'IDLE',pl:[],r0:{},amendAt:{},lastCyc:0,posSyms:{},lock:0,errAt:0,fe:0,lastKey:'',lastSay:0,note:'',voice:false,px:{},sf:{},subd:{},st:(()=>{try{return JSON.parse(LS.mq_st||'{}')}catch(e){return{}}})(),ll:null,legs:1,auto:LS.mq_auto!=='0',riskPct:+LS.mq_risk||2,maxLot:+LS.mq_maxlot||1,lossRun:0,lc:null,ap:LS.mq_ap==='1',sc:{},lt:0,minBank:+LS.mq_mb||.45,guardStart:+LS.mq_gs||1.5,closing:{},amendMin:{},lastAmend:null,lastOrderAt:0,rules:{},dis:{},disNote:{},mtry:{},whyNot:'',bretry:0,lastSL:0,minSL:(()=>{try{return JSON.parse(LS.mq_minsl2||'{}')}catch(e){return{}}})(),stats:(()=>{try{return JSON.parse(LS.mq_stats||'{}')}catch(e){return{}}})(),last:(()=>{try{return JSON.parse(LS.mq_last||'null')}catch(e){return null}})(),pauseUntil:0,lockStart:+LS.mq_ls||.8,tp2$:+LS.mq_tp2||4,breath:+LS.mq_br||.6,basketTP:+LS.mq_btp||2.5,runner:+LS.mq_run||10,cs:(()=>{try{return JSON.parse(LS.mq_cs||'{}')}catch(e){return{}}})(),lot:parseFloat(LS.mq_lot)||.01,scalp:!!LS.mq_scalp,sh:[]};
+const TFM={1:1,5:5,7:15,8:30,9:60},TFN={1:'M1',5:'M5',7:'M15',8:'M30',9:'H1'},V={n:60,off:0};
+S.pnlClosed=0;S.bankroll=0;S.eqCurve=[];S.fills=[];S.probHist=[];S.mktHist=[];S.candles=[];
+const fx=v=>(+v).toFixed(X.digits>6?5:X.digits),cl=(v,a=-1,b=1)=>Math.max(a,Math.min(b,v)),ema=(a,n)=>{const k=2/(n+1);let e=a[0];return a.map(v=>e=v*k+e*(1-k))};
+const redirect=()=>{let p=location.pathname;if(p.endsWith('/index.html'))p=p.slice(0,-10);return location.origin+p};
+const send=(t,p)=>{if(X.ws&&X.ws.readyState===1)X.ws.send(JSON.stringify({clientMsgId:'m'+X.seq++,payloadType:t,payload:p}))};
+const mt=t=>{$('mt').textContent=t};
+function note(t,tag,say){X.note=t;addLog(tag||'sys',t,'');if(say!==null)talk(say===undefined?t:say,say!==undefined||tag==='bet'||tag==='win'||tag==='loss'?2:1)}
+/* ---- login: same flow as the Series X bot (cTrader page, Worker swaps the code for a token) ---- */
+$('login').onclick=()=>{location.href='https://id.ctrader.com/my/settings/openapi/grantingaccess/?client_id='+encodeURIComponent(CID)+'&redirect_uri='+encodeURIComponent(redirect())+'&scope=trading&product=web'};
+async function boot(){const code=new URLSearchParams(location.search).get('code');
+  if(code){history.replaceState({},'',location.pathname);mt('Finishing login...');
+    try{const d=await(await fetch(WORKER+'?code='+encodeURIComponent(code)+'&redirect_uri='+encodeURIComponent(redirect()))).json();
+      if(!d.accessToken){mt('Login failed: '+(d.description||d.errorCode||'unknown')+'. Tap to try again.');return}
+      X.tok=d.accessToken;X.sec=d.clientSecret||X.sec;LS.mq_tok=X.tok;LS.mq_sec=X.sec;if(d.refreshToken)LS.mq_ref=d.refreshToken}
+    catch(e){mt('Could not reach the login helper: '+e.message);return}}
+  if(X.tok&&X.sec)connect();else $('msg').style.display='flex'}
+/* ---- broker connection ---- */
+function connect(){X.stop=false;mt('Connecting...');$('msg').style.display='flex';
+  const ws=X.ws=new WebSocket('wss://'+X.env+'.ctraderapi.com:5036');
+  ws.onopen=()=>{send(2100,{clientId:CID,clientSecret:X.sec});X.hb=setInterval(()=>send(51,{}),20000)};
+  ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}handle(m.payloadType,m.payload||{})};
+  ws.onclose=()=>{clearInterval(X.hb);if(X.ws!==ws)return;feed('○ RECONNECTING','warn');if(!X.stop){mt('Connection dropped, reconnecting...');$('msg').style.display='flex';setTimeout(connect,2500)}}}
+function feed(t,c){const e=$('feedChip');e.textContent=t;e.className='chip '+c}
+function pickAcct(a){X.acct=a;LS.mq_acct=a;send(2102,{ctidTraderAccountId:a,accessToken:X.tok})}
+function refresh(){send(2121,{ctidTraderAccountId:X.acct});send(2124,{ctidTraderAccountId:X.acct})}
+function handle(t,p){
+  if(t===2101)send(2149,{accessToken:X.tok});
+  else if(t===2150){X.accs=(p.ctidTraderAccount||[]).filter(a=>!!a.isLive===(X.env==='live'));
+    if(!X.accs.length){mt('No '+X.env+' accounts were allowed. Tap login and tick one.');return}
+    const known=X.accs.find(a=>a.ctidTraderAccountId===X.acct);
+    if(known||X.accs.length===1)pickAcct((known||X.accs[0]).ctidTraderAccountId);
+    else{mt('Choose the account to trade:');$('login').style.display='none';X.accs.forEach(a=>{const b=document.createElement('button');b.textContent='Account '+(a.traderLogin||a.ctidTraderAccountId);b.className='pk';b.onclick=()=>{pickAcct(a.ctidTraderAccountId);$('msg').querySelectorAll('.pk').forEach(x=>x.remove())};$('msg').appendChild(b)})}}
+  else if(t===2103){X.subd={};$('msg').style.display='none';$('login').style.display='';feed('● LIVE FEED','live');$('connBtn').textContent='⎋ LOGOUT · '+X.acct;refresh();send(2114,{ctidTraderAccountId:X.acct});{const last=X.cur||(LS.mq_symid&&!(weekendNow()&&!open24(LS.mq_sym))?{symbolId:+LS.mq_symid,symbolName:LS.mq_sym}:null);if(last)choose(last)}
+    clearInterval(X.sy);X.sy=setInterval(refresh,30000);addLog('sys','CTRADER '+X.env.toUpperCase()+' ACCOUNT '+X.acct+' CONNECTED — REAL BROKER DATA · BUILD B6 · SCALP '+(X.scalp?'ON':'OFF'),'')}
+  else if(t===2122&&p.trader){X.bal=p.trader.balance/Math.pow(10,p.trader.moneyDigits||2);if(X.bal0===null)X.bal0=X.bal;{const bk='mq_bb_'+X.acct;if(!X.balBase){X.balBase=+LS[bk]||X.bal;LS[bk]=X.balBase}if(X.bal<X.balBase*.5||X.bal>X.balBase*10){X.balBase=X.bal;LS[bk]=X.balBase}};S.eqCurve.push(X.bal);if(S.eqCurve.length>400)S.eqCurve.shift();}
+  else if(t===2125){const l=p.position||[];X.open=l.length;if(!l.length){X.pool=0;X.bk=null}X.posSyms={};l.forEach(q=>{if(q.tradeData)X.posSyms[q.tradeData.symbolId]=q.tradeData.tradeSide});
+    X.pl=l.filter(q=>q.tradeData).map(q=>({id:q.positionId,sym:q.tradeData.symbolId,side:q.tradeData.tradeSide===1?'BUY':'SELL',entry:q.price,sl:q.stopLoss,tp:q.takeProfit,vol:q.tradeData.volume}));X.pl.forEach(q=>{if(!X.subd[q.sym]&&!(X.cur&&q.sym===X.cur.symbolId)){X.subd[q.sym]=1;send(2127,{ctidTraderAccountId:X.acct,symbolId:[q.sym]});send(2116,{ctidTraderAccountId:X.acct,symbolId:[q.sym]})}})}
+  else if(t===2115){X.syms=(p.symbol||[]).filter(s=>s.symbolName);{const wk=weekendNow();X.wk=wk;if(!X.cur||(wk&&!open24(X.cur.symbolName)&&!X.userPick)){const cr=wk?(X.syms.find(s=>/^BTCUSD/.test(s.symbolName))||X.syms.find(s=>CRYPTO.test(nm0(s.symbolName)))):null;const d=cr||X.syms.find(s=>s.symbolName===LS.mq_sym)||X.syms.find(s=>/^XAUUSD/.test(s.symbolName))||X.syms[0];if(d)choose(d);if(wk)note('It is the weekend: forex, gold and indices are closed, so I scan and trade crypto only until Sunday 22:00 UTC.','sys','It is the weekend. I trade crypto only.')}}if(X.ap)scanInit()}
+  else if(t===2117){const s=(p.symbol||[])[0];if(s){X.sf[s.symbolId]={step:+s.stepVolume||1,min:+s.minVolume||1,lot:+s.lotSize||0};{const e2=X.sc[s.symbolId];if(e2){e2.full=s;e2.dg=s.digits!=null?s.digits:5}}{const nm0=(X.syms.find(x=>x.symbolId===s.symbolId)||{}).symbolName,bad=JSON.parse(LS.mq_bad||'{}');if(nm0){if(symOff(s.tradingMode))bad[nm0]=Date.now()+216e5;else delete bad[nm0];LS.mq_bad=JSON.stringify(bad)}}const dm=s.distanceSetIn,pts=dm==null||dm===1||dm==='SYMBOL_DISTANCE_IN_POINTS',dgt=s.digits!=null?s.digits:5;X.rules[s.symbolId]={mode:s.tradingMode,sl:pts?(+s.slDistance||0)/Math.pow(10,dgt):0,tp:pts?(+s.tpDistance||0)/Math.pow(10,dgt):0}}if(s&&X.cur&&s.symbolId===X.cur.symbolId){X.digits=s.digits||5;X.cur.full=s;if(symOff(s.tradingMode))note('⚠ '+X.cur.symbolName+': the broker has trading disabled for this pair on this account, so I can only watch it (Deriv has set Volatility Indices to close-only for now). Pick another pair, for example BTCUSD.','pass',null)}}
+  else if(t===2138)bars(p);
+  else if(t===2131&&X.cur&&p.symbolId===X.cur.symbolId){try{if(p.trendbar&&p.trendbar.length)liveBar(p.trendbar[p.trendbar.length-1])}catch(e){}tick(p)}
+  else if(t===2131){if(X.pl.length)softStop();const e=X.sc[p.symbolId];if(e){if(p.bid)e.bid=p.bid/1e5;if(p.ask)e.ask=p.ask/1e5;e.lt=Date.now();tickE(e)}const o=X.px[p.symbolId]=X.px[p.symbolId]||{bid:0,ask:0};if(p.bid)o.bid=p.bid/1e5;if(p.ask)o.ask=p.ask/1e5}
+  else if(t===2126){const d=p.deal;if(d&&d.executionPrice){const sm=(X.syms.find(s=>s.symbolId===d.symbolId)||{}).symbolName||'',f=X.cur&&X.cur.full,lots=f&&f.lotSize?(d.filledVolume||d.volume||0)/f.lotSize:0,now=new Date().toISOString().substr(11,8),cd=d.closePositionDetail,sd=d.tradeSide===1?'BUY ':'SELL ';
+      {const cm=Math.abs(d.commission||0),vv=d.filledVolume||d.volume||0;if(cm&&vv){X.cs[d.symbolId]=cm/Math.pow(10,d.moneyDigits||(cd&&cd.moneyDigits)||2)/vv;LS.mq_cs=JSON.stringify(X.cs)}}
+      if(cd){const md=Math.pow(10,cd.moneyDigits||2),pn=((cd.grossProfit||0)+(cd.swap||0)+(cd.commission||0))/md;pn>=0?S.wins++:S.losses++;X.pool=Math.max(0,(X.pool||0)+pn);X.bkHold=Date.now()+1500;X.lossRun=pn<0?X.lossRun+1:0;X.lc={side:d.tradeSide===1?'SELL':'BUY',at:Date.now(),pn};
+      {const L=X.last;if(L&&Date.now()-L.at<36e5){const k=L.strat,s=X.stats[k]||(X.stats[k]={n:0,w:0,sum:0,rec:[]}),secs=Math.round((Date.now()-L.at)/1e3);s.n++;if(pn>0)s.w++;s.sum+=pn;s.rec.push(+pn.toFixed(2));if(pn<0&&secs<45){X.ban=X.ban||{};X.ban[k]=Date.now()+(X.scalp?12e4:3e5)}if(s.rec.length>12)s.rec.shift();LS.mq_stats=JSON.stringify(X.stats);
+        note('REVIEW: '+k+' '+(pn>0?'won $'+pn.toFixed(2)+'. I keep trusting this setup.':pn<0?(secs<45?'was stopped out in '+secs+' seconds, so the entry was too early or too late. I will ask for a stronger signal for a while.':'lost $'+Math.abs(pn).toFixed(2)+', the stop did its job.'):'ended flat.')+' ('+s.w+' wins from '+s.n+' trades)','sys',null);X.last=null}}if(X.lossRun>=(X.scalp?5:3)){X.lossRun=0;X.pauseUntil=Date.now()+(X.scalp?3e4:6e4);note((X.scalp?'5':'3')+' losses in a row: Megan rests '+(X.scalp?'30':'60')+' seconds, then resumes by herself.','sys')}if(pn<0)X.ll={side:d.tradeSide===1?'SELL':'BUY',at:Date.now()};S.streak=pn>=0?Math.max(1,S.streak+1):Math.min(-1,S.streak-1);S.fees+=Math.abs(cd.commission||0)/md;
+        const r=(pn>=0?'+':'')+fmt$(pn);pushFill(now,'CLOSE '+sm,fx(d.executionPrice),lots.toFixed(2),'',r);addLog(pn>=0?'win':'loss',(pn>0?'CLOSED IN PROFIT — banked to balance: ':'CLOSED ')+sm+' @ '+fx(d.executionPrice),r);talk(pn>0?'Closed in profit, plus '+pn.toFixed(2)+' dollars.':pn<0?'Closed with a loss of '+Math.abs(pn).toFixed(2)+' dollars.':'Closed at break even.',2)}
+      else{pushFill(now,sd+sm,fx(d.executionPrice),lots.toFixed(2),X.an?X.an.rr+'R':'','—');addLog('fill',sd+sm+' FILLED @ '+fx(d.executionPrice),'')}renderFills()}
+    setTimeout(refresh,800)}
+  else if(t===2132){if(/POSITION_NOT_FOUND/i.test(p.errorCode||'')){setTimeout(refresh,500);return}
+    {const code=(p.errorCode||'')+' '+(p.description||''),id=X.cur&&X.cur.symbolId,n=Date.now(),la=X.lastAmend,isAmend=la&&n-la.at<6000&&la.at>=(X.lastOrderAt||0),stopErr=/BAD_STOPS|PROTECTION|TOO_CLOSE|INVALID_RANGE|STOP_LOSS|TAKE_PROFIT/i.test(code);
+      if(isAmend&&stopErr){const dist=Math.abs(la.px-la.sl);X.amendMin[la.sym]=Math.min(la.px*.01,Math.max((X.amendMin[la.sym]||0)*1.4,dist*1.35));const s0=X.st[la.id];if(s0)s0.noAmend=n+8000;
+        if(!X.amN||n-X.amN>6e4){X.amN=n;note('The broker will not accept a stop that close to the price. I keep a backup stop as close as it allows, and I close the trade myself the moment the market takes back more than $'+X.breath+'.','sys',null)}return}
+      if(id&&/TRADING_DISABLED|NOT_TRADABLE|MARKET_CLOSED/i.test(code)){X.dis[id]=Date.now()+9e5;note('The broker refused: trading is disabled for '+X.cur.symbolName+' on this account right now. The bot is fine. I stop trying on this pair for 15 minutes. Pick another pair, for example BTCUSD.','pass');return}
+      if(id&&stopErr){X.mtry[id]=(X.mtry[id]||0)+1;X.minSL[id]=Math.min((X.ask||X.bid||1e9)*.012,Math.max((X.minSL[id]||0)*1.4,(X.lastSL||0)*1.4));LS.mq_minsl2=JSON.stringify(X.minSL);
+        if(X.mtry[id]>=3){X.mtry[id]=0;X.lock=n+60000;note('The broker keeps refusing the stop distance on '+X.cur.symbolName+'. I wait 60 seconds, then try again with the widest stop it allows.','pass',null)}
+        else{X.lock=n+1500;note('The broker needs a wider stop on '+X.cur.symbolName+'. I widened it a little and retry.','sys',null)}return}}
+    const f=/MONEY|MARGIN|FUNDS/i.test(p.errorCode||'');X.fe=f?X.fe+1:0;let m='Order rejected: '+(p.errorCode||'')+(p.description?' - '+p.description:'');if(X.fe>=3&&X.run){X.lock=Date.now()+120000;X.fe=0;m+='. Not enough free margin, so I pause 2 minutes. Top up or reset the demo balance.'}note(m,'loss')}
+  else if(t===2142||t===50){if(p.description||p.errorCode)mt((p.errorCode||'Error')+': '+(p.description||''))}}
+function getBarsFor(id,span){const n=Date.now();send(2137,{ctidTraderAccountId:X.acct,symbolId:id,period:X.tf,fromTimestamp:n-(span||Math.max(320*TFM[X.tf]*6e4,3*864e5)),toTimestamp:n,count:X.tf<=5?420:320})}   /* small, capped request = candles appear fast */
+function getBars(span){getBarsFor(X.cur.symbolId,span)}
+function choose(s){X.cur=s;X.bars=[];X.bid=X.ask=0;X.an=null;V.off=V.offF=0;V.ps=1;V.po=0;X.dpx=null;X.bretry=0;LS.mq_sym=s.symbolName;LS.mq_symid=s.symbolId;{const r=JSON.parse(LS.mq_scan||'[]').filter(x=>x!==s.symbolName);r.unshift(s.symbolName);LS.mq_scan=JSON.stringify(r.slice(0,8))}{const e=X.sc[s.symbolId]||(X.sc[s.symbolId]={id:s.symbolId,name:s.symbolName,bars:[],bid:0,ask:0,dg:5,full:null,lt:0});e.bars=X.bars}X.lt=0;X.chAt=Date.now();S.probHist=[];S.mktHist=[];send(2116,{ctidTraderAccountId:X.acct,symbolId:[s.symbolId]});send(2127,{ctidTraderAccountId:X.acct,symbolId:[s.symbolId]});send(2135,{ctidTraderAccountId:X.acct,symbolId:s.symbolId,period:X.tf});getBars();addLog('sys','WATCHING '+s.symbolName+' '+TFN[X.tf],'');if(X.run)newsTick()}
+const PERN={M1:1,M5:5,M15:7,M30:8,H1:9};
+function parseBars(p){const k=1e5;return(p.trendbar||[]).map(b=>({t:b.utcTimestampInMinutes,o:(b.low+b.deltaOpen)/k,c:(b.low+b.deltaClose)/k,h:(b.low+b.deltaHigh)/k,l:b.low/k})).sort((a,b)=>a.t-b.t)}
+function setBars(arr){X.bars=arr;const e=X.cur&&X.sc[X.cur.symbolId];if(e)e.bars=arr}
+function bars(p){const B=parseBars(p),e=X.sc[p.symbolId];
+  if(e&&!(X.cur&&p.symbolId===X.cur.symbolId)){const tail=e.bars.filter(b=>B.length&&b.t>B[B.length-1].t);if(B.length)e.bars=B.concat(tail).slice(-1500);return}
+  if(X.cur&&p.symbolId&&p.symbolId!==X.cur.symbolId)return;
+  const tail=X.bars.filter(b=>B.length&&b.t>B[B.length-1].t);                      /* candles built from live ticks while history was loading are kept */
+  if(B.length>=X.bars.length||B.length>=60)setBars(B.concat(tail).slice(-1500));
+  if(B.length<60&&(X.bretry||0)<3){X.bretry=(X.bretry||0)+1;getBars([14,45,120][X.bretry-1]*864e5)}   /* market closed or sparse pair: look further back so the chart is never blank */
+  analyze()}
+function liveBar(tb){const k=1e5,t=tb.utcTimestampInMinutes,pr=typeof tb.period==='string'?PERN[tb.period]:tb.period;if(!t||!X.bars.length||(pr!=null&&pr!==X.tf))return;const o=(tb.low+(tb.deltaOpen||0))/k,h=(tb.low+(tb.deltaHigh||0))/k,l=tb.low/k,c=(tb.low+(tb.deltaClose||0))/k,L=X.bars[X.bars.length-1];if(t===L.t){L.o=o;L.h=Math.max(L.h,h);L.l=Math.min(L.l,l)}else if(t>L.t)X.bars.push({t,o,h,l,c})}
+function tickE(e){const px=e.bid||e.ask;if(!px||!e.bars.length)return;const m=Math.floor(Date.now()/60000),bt=m-m%TFM[X.tf],L=e.bars[e.bars.length-1];if(bt>L.t)e.bars.push({t:bt,o:px,h:px,l:px,c:px});else{L.c=px;L.h=Math.max(L.h,px);L.l=Math.min(L.l,px)}}
+function tick(p){const k=1e5;if(p.bid)X.bid=p.bid/k;if(p.ask)X.ask=p.ask/k;X.lt=Date.now();{const e=X.cur&&X.sc[X.cur.symbolId];if(e){e.bid=X.bid;e.ask=X.ask;e.lt=X.lt}}const px=X.bid||X.ask;if(!px)return;
+  const m=Math.floor(Date.now()/60000),bt=m-m%TFM[X.tf];if(!X.bars.length)X.bars.push({t:bt,o:px,h:px,l:px,c:px});const L=X.bars[X.bars.length-1];
+  if(bt>L.t)X.bars.push({t:bt,o:px,h:px,l:px,c:px});else{L.c=px;L.h=Math.max(L.h,px);L.l=Math.min(L.l,px)}
+  const n=Date.now();if(!X.la||n-X.la>600){X.la=n;analyze()}monitor()}
+/* ---- search any pair the broker offers ---- */
+$('q').oninput=()=>{const v=$('q').value.trim().toUpperCase(),l=$('list');if(!v){l.style.display='none';return}
+  const r=X.syms.filter(s=>s.symbolName.toUpperCase().includes(v)).slice(0,12);l.innerHTML=r.length?'':'<div>Not offered by this broker.</div>';
+  r.forEach(s=>{const d=document.createElement('div');d.textContent=s.symbolName;d.onclick=()=>{X.userPick=true;choose(s);l.style.display='none';$('q').value=''};l.appendChild(d)});l.style.display='block'};
+/* ---- analysis engine: every number comes from the live candles ---- */
+/* ---- trap filters + early impulse: same timeframe you chose, no multi-timeframe ---- */
+function trapLayer(){const a=X.an,B=X.bars;if(!a||B.length<40||!X.ask||!X.bid)return;
+  const n=B.length-1,f=B[n],p=B[n-1],at=a.atr,sp=Math.max(0,X.ask-X.bid),th=minConf(),e26=a.e26s,e12=a.e12s,c=B.map(x=>x.c),px=a.px,rg=Math.max(1e-9,f.h-f.l),dirOld=a.side==='BUY'?1:a.side==='SELL'?-1:0,tr=a.feat[0];
+  const run=d=>{let len=0,i=n;while(i>=0&&(B[i].c-B[i].o)*d>0){len++;i--}return{len,dist:len?(B[n].c-B[n-len+1].o)*d:0}};
+  const path=c.slice(n-19).reduce((s,v,i,r)=>i?s+Math.abs(v-r[i-1]):s,0),eff=Math.abs(c[n]-c[n-20])/Math.max(1e-9,path),r0=B.slice(-60,-15);let s0=0;for(let i=1;i<r0.length;i++)s0+=Math.max(r0[i].h-r0[i].l,Math.abs(r0[i].h-r0[i-1].c),Math.abs(r0[i].l-r0[i-1].c));
+  const volr=at/Math.max(1e-9,s0/Math.max(1,r0.length-1)||at),spike=(f.h-f.l)>3*at,heat=X.news?X.news.heat:0,stopped=d=>X.ll&&Date.now()-X.ll.at<24e4&&X.ll.side===(d>0?'BUY':'SELL');
+  const common=(d,w,free)=>{let adj=0;if(spike){adj-=X.scalp?10:20;w.push('news spike candle')}if(heat>.7){adj-=X.scalp?3:8;w.push('news risk')}if(volr<.55){adj-=X.scalp?4:12;w.push('quiet market')}if(stopped(d)){adj-=X.scalp?8:20;w.push('just stopped out this side, possible trap')}
+    if(!free){if(((p.h-p.l)>2.2*at&&(p.c-p.o)*d>0)||((f.h-f.l)>2.5*at&&(f.c-f.o)*d>0)){adj-=X.scalp?10:22;w.push('climax candle, the move is exhausted')}if(eff<.18){adj-=X.scalp?5:15;w.push('choppy range')}if(Math.abs(px-e12[n])/at>(X.scalp?3:2.3)){adj-=X.scalp?8:18;w.push('extended, not chasing')}const r=run(d);if(X.scalp?(r.len>=6||r.dist>3.2*at):(r.len>=3||r.dist>1.8*at)){adj-=X.scalp?10:25;w.push('late: the move already ran, waiting for a pullback')}}return adj};
+  let cand=null;
+  if(p.c>a.hi&&px<a.hi)cand={dir:-1,free:1,name:'Failed Breakout (fakeout)',why:'breakout above resistance failed and price fell back inside',base:66,lvl:Math.max(p.h,f.h)+.25*at};
+  else if(p.c<a.lo&&px>a.lo)cand={dir:1,free:1,name:'Failed Breakout (fakeout)',why:'breakdown below support failed and price came back inside',base:66,lvl:Math.min(p.l,f.l)-.25*at};
+
+  if(X.scalp&&!cand){const cost=costDist(X.cur.symbolId),rv=X.lc&&X.lc.pn>0&&Date.now()-X.lc.at<9e4?X.lc.side:null;
+    for(const d of [1,-1]){const body=(f.c-f.o)*d,pos=d>0?(f.c-f.l)/rg:(f.h-f.c)/rg,brk=d>0?f.c>p.h:f.c<p.l,rev=rv===(d>0?'SELL':'BUY'),r=run(d),al=(e12[n]-e26[n])*d;
+      if(body>=(rev?.3:.45)*at&&pos>=.65&&brk&&r.len<=3&&(eff>=.22||body>=1.2*at)&&al>=(rev?-1.5:-.3)*at&&(f.h-f.l)<=2.6*at&&!((p.h-p.l)>2.6*at&&(p.c-p.o)*d>0)){
+        const w=[],cf=Math.min(94,64+Math.min(12,body/at*8)+(rev?6:0)+common(d,w,1)),sl=Math.max(at*1.05,sp*6+cost*1.5);
+        if(cf>=th&&(dirOld!==-d||cf>=a.conf)){a.side=d>0?'BUY':'SELL';a.conf=Math.round(cf);a.strat=rev?'Momentum Rider (stop and reverse)':'Momentum Rider';a.why='a strong '+(d>0?'up':'down')+' burst'+(rev?', right after the opposite trade was stopped, so I reverse':'')+'. I trail the stop tightly behind price'+(w.length?' | careful: '+w.join(', '):'');a.slD=sl;a.tpD=sl*a.rr;a.score=d*cf/100;return}}}}
+  if(X.scalp&&!cand){const cost2=costDist(X.cur.symbolId);
+    for(const d of [1,-1]){let lo=1e18,hi=-1e18,li=-1,hx=-1;for(let i=Math.max(1,n-9);i<=n-1;i++){if(B[i].l<lo){lo=B[i].l;li=i}if(B[i].h>hi){hi=B[i].h;hx=i}}
+      const leg=hi-lo;if(leg<1.5*at||leg>5*at)continue;
+      if(!(d>0?(li<hx&&n-hx>=1&&n-hx<=5):(hx<li&&n-li>=1&&n-li<=5)))continue;
+      const ext=d>0?Math.min(...B.slice(hx).map(x=>x.l)):Math.max(...B.slice(li).map(x=>x.h)),pbk=d>0?(hi-ext)/leg:(ext-lo)/leg;   /* depth of the pullback = its deepest point */
+      if(pbk<.25||pbk>.65)continue;
+      if(!((f.c-f.o)*d>=.2*at)||tr*d<-.3||(d>0?hi-px:px-lo)<.3*(d>0?hi-ext:ext-lo))continue;   /* a candle resumes, and price has not already run back to the old extreme */
+      const en=d>0?X.ask:X.bid,w=[],
+        cf=Math.min(92,68+Math.min(8,(leg/at-1.5)*4)+common(d,w,1)),sl=Math.min(Math.max(Math.abs(en-ext)+.25*at,at*1.05,sp*6+cost2*1.5),at*2.4);
+      if(cf>=th&&(dirOld!==-d||cf>=a.conf)){a.side=d>0?'BUY':'SELL';a.conf=Math.round(cf);a.strat='Pullback Resume (short leg)';
+        a.why='a '+(d>0?'up':'down')+' leg of '+(leg/at).toFixed(1)+' candles pulled back '+Math.round(pbk*100)+'% and a candle is resuming, so I join early on the retrace instead of chasing'+(w.length?' | careful: '+w.join(', '):'');a.slD=sl;a.tpD=sl*a.rr;a.score=d*cf/100;return}}}
+  if(cand){const w=[],cf=Math.min(96,cand.base+(tr*cand.dir>.2?8:0)+common(cand.dir,w,cand.free)),en=cand.dir>0?X.ask:X.bid,lo=X.scalp?1:.9,hi=X.scalp?1.6:2.5;
+    if(cf>=th&&(dirOld!==-cand.dir||cf>=a.conf)){const sl=Math.min(Math.max(Math.abs(en-cand.lvl),at*lo,sp*4),at*hi);a.side=cand.dir>0?'BUY':'SELL';a.conf=Math.round(cf);a.strat=cand.name;a.why=cand.why+(w.length?' | careful: '+w.join(', '):'');a.slD=sl;a.tpD=sl*a.rr;a.score=cand.dir*cf/100;return}}
+  if(!dirOld)return;const w=[],cont=/Breakout Continuation|Momentum Follow|Candle Body Scalp|Aggressive Scalp|Break of Structure|Market Structure Shift/.test(a.strat),adj=common(dirOld,w,!cont);
+  if(w.length){a.why+=' | careful: '+w.join(', ');a.conf=Math.max(40,Math.min(96,a.conf+adj));if(a.conf<th){a.strat='Stand aside (watching '+a.strat+')';a.side='WAIT'}}}
+/* ---- Megan's trader brain: market regime -> does the setup fit it -> costs -> her own track record -> decision (and she explains it) ---- */
+function brainLayer(){const a=X.an,B=X.bars;if(!a||B.length<40||!X.ask||!X.bid)return;
+  const n=B.length-1,c=B.map(x=>x.c),at=a.atr,f=B[n],th=minConf(),sp=Math.max(0,X.ask-X.bid);
+  const path=c.slice(n-19).reduce((s,v,i,r)=>i?s+Math.abs(v-r[i-1]):s,0),eff=Math.abs(c[n]-c[n-20])/Math.max(1e-9,path),r0=B.slice(-60,-15);let s0=0;for(let i=1;i<r0.length;i++)s0+=Math.max(r0[i].h-r0[i].l,Math.abs(r0[i].h-r0[i-1].c),Math.abs(r0[i].l-r0[i-1].c));
+  const volr=at/Math.max(1e-9,s0/Math.max(1,r0.length-1)||at),regime=(f.h-f.l)>3*at?'SPIKE':volr<.55?'DEAD':eff>=.3?'TREND':eff<.18?'RANGE':'MIXED';a.regime=regime;
+  if(a.side==='WAIT'){a.why='['+regime+'] '+a.why;return}
+  const d=a.side==='BUY'?1:-1,s=a.strat,tr=a.feat[0],cont=/Breakout Continuation|Momentum|Candle Body|Structure|Rider|Scalp/.test(s),fade=/Sweep|Failed Breakout|Order Block|Fair Value|Supply/.test(s),notes=[];let cf=a.conf,block='';
+  if(regime==='DEAD')block='the market is dead, there is no edge';
+  else if(regime==='RANGE'&&cont&&!(/Rider/.test(s)||(/Structure/.test(s)&&a.conf>=70)))block='the market is range-bound, breakouts here usually fail';
+  else if(fade&&tr*d<-.55)block='that would fade a strong trend';
+  if(regime==='RANGE'&&cont&&X.scalp&&!/Rider/.test(s)){cf-=12;notes.push('range-bound market, so I need more proof')}
+  if(regime==='SPIKE'&&!fade){cf-=X.scalp?4:10;notes.push('spike regime')}
+  const cost=costDist(X.cur.symbolId)+sp;if(a.slD<(X.scalp?1.8:2.5)*cost)block=block||'costs would eat the edge, the stop is too small next to spread and commission';
+  const hr=X.hourUTC!=null?X.hourUTC:new Date().getUTCHours();if(hr===21||hr===22){cf-=12;notes.push('rollover hours, spreads widen')}
+  const st=X.stats[s];if(st&&st.n>=8){const ev=st.sum/st.n,rec=st.rec.reduce((x,y)=>x+y,0);if(ev<0&&rec<0){cf-=(X.scalp?8:14);notes.push('this setup lost money lately ('+st.w+' wins from '+st.n+')')}else if(ev>0&&st.w/st.n>=.5){cf+=4;notes.push('this setup has paid off ('+st.w+' wins from '+st.n+')')}}
+  if(X.lossRun>0){cf-=Math.min(X.scalp?6:12,X.lossRun*(X.scalp?2:4));notes.push('after '+X.lossRun+' loss'+(X.lossRun>1?'es':'')+' I want a stronger signal')}
+  a.conf=Math.round(Math.max(40,Math.min(96,cf)));
+  if(block||a.conf<th){a.strat='Stand aside (watching '+s+')';a.why='['+regime+'] '+(block||'not convincing enough after my own checks')+(notes.length?' | '+notes.join(', '):'')+' | '+a.why;a.side='WAIT';return}
+  a.why='['+regime+' market] '+a.why+(notes.length?' | '+notes.join(', '):'')}
+/* ---- SUPPLY & DEMAND: a tight base followed by a strong push marks a zone where big players acted; the first return to a fresh (untouched) zone is the entry ---- */
+function sdZones(B,at){const n=B.length-1,out={d:null,s:null};
+  for(let i=n-3;i>=Math.max(4,n-80)&&!(out.d&&out.s);i--){const up=(B[i+1].c-B[i].c)>=1.4*at&&B[i+1].c>B[i+1].o,dn=(B[i].c-B[i+1].c)>=1.4*at&&B[i+1].c<B[i+1].o;if(!up&&!dn)continue;
+    const base=B.slice(Math.max(0,i-2),i+1),zl=Math.min(...base.map(x=>x.l)),zh=Math.max(...base.map(x=>x.h));if(zh-zl>1.6*at)continue;
+    if(up&&!out.d&&!B.slice(i+2).some(x=>x.c<zl))out.d={zl,zh,i};
+    if(dn&&!out.s&&!B.slice(i+2).some(x=>x.c>zh))out.s={zl,zh,i}}
+  return out}
+function analyze(){const B=X.bars;if(B.length<40)return;const c=B.map(x=>x.c),n=c.length-1,e12=ema(c,12),e26=ema(c,26);
+  let g=0,ls=0;for(let i=n-13;i<=n;i++){const d=c[i]-c[i-1];d>0?g+=d:ls-=d}const rsi=ls?100-100/(1+g/ls):100;
+  const trf=a=>a.map((x,i,r)=>i?Math.max(x.h-x.l,Math.abs(x.h-r[i-1].c),Math.abs(x.l-r[i-1].c)):x.h-x.l).slice(1),avg=a=>a.reduce((p,q)=>p+q,0)/a.length;
+  const atr=avg(trf(B.slice(-15)))||1e-9,atr0=avg(trf(B.slice(-60,-15)))||atr;
+  const w=B.slice(-22,-2),hi=Math.max(...w.map(x=>x.h)),lo=Math.min(...w.map(x=>x.l)),L=B[n],px=c[n],P=B[n-1];
+  const trend=cl((e12[n]-e26[n])/atr/1.5),mom=cl((px-c[n-6])/atr/3),rs=cl((rsi-50)/25),vol=cl(atr/atr0-1);
+  const up=px>hi,dn=px<lo,swU=L.h>hi&&L.c<hi,swD=L.l<lo&&L.c>lo,struct=swD?1:swU?-1:up?.8:dn?-.8:0;
+  const pv=(()=>{let H=null,Lw=null;for(let i=n-3;i>=Math.max(2,n-45);i--){const x=B[i];if(H===null&&x.h>B[i-1].h&&x.h>B[i-2].h&&x.h>B[i+1].h&&x.h>B[i+2].h)H=x.h;if(Lw===null&&x.l<B[i-1].l&&x.l<B[i-2].l&&x.l<B[i+1].l&&x.l<B[i+2].l)Lw=x.l;if(H!==null&&Lw!==null)break}return{H,L:Lw}})();
+  const dsp=Math.abs(L.c-L.o),bosU=pv.H!==null&&P.c<=pv.H&&px>pv.H+.1*atr&&L.c>L.o&&dsp>=.5*atr,bosD=pv.L!==null&&P.c>=pv.L&&px<pv.L-.1*atr&&L.c<L.o&&dsp>=.5*atr,bos=bosU?1:bosD?-1:0,mss=bos&&Math.sign(trend)===-bos&&Math.abs(trend)>.15;
+  const Z=sdZones(B,atr),inD=!!(Z.d&&px<=Z.d.zh+.15*atr&&px>=Z.d.zl-.1*atr&&(L.c>=L.o||L.l<=Z.d.zh)&&B.slice(-9,-1).some(x=>x.c>Z.d.zh+.5*atr)),inS=!!(Z.s&&px>=Z.s.zl-.15*atr&&px<=Z.s.zh+.1*atr&&(L.c<=L.o||L.h>=Z.s.zl)&&B.slice(-9,-1).some(x=>x.c<Z.s.zl-.5*atr)),sd=inD&&!inS?1:inS&&!inD?-1:0;
+  const pb=trend>.15&&Math.abs(px-e12[n])<atr*.6&&rsi<58?1:trend<-.15&&Math.abs(px-e12[n])<atr*.6&&rsi>42?-1:0;
+  const bd=Math.abs(P.c-P.o),body=bd>.6*(P.h-P.l||1e-9)&&bd>atr*.9?(P.c>P.o?1:-1):0;
+  let fz=null;for(let i=n-1;i>=n-14&&i>=2;i--){const a1=B[i-2],c1=B[i];if(a1.h<c1.l){fz=[a1.h,c1.l,1];break}if(a1.l>c1.h){fz=[c1.h,a1.l,-1];break}}
+  const fvg=fz?(px>=fz[0]&&px<=fz[1]?fz[2]:fz[2]*.4):0,score=cl(trend*.22+mom*.16+rs*.08+struct*.2+pb*.12+body*.12+fvg*.1+bos*(mss?.14:.18)+sd*.2),sg=Math.sign(score);
+  let strat='Stand aside',why='no clean setup yet';
+  if(swU||swD){strat='Liquidity Sweep Reversal';why=(swU?'highs':'lows')+' were swept and price closed back inside'}
+  else if(sd){strat='Supply & Demand zone';why='price is back at a fresh '+(sd>0?'demand zone, where buyers took control before':'supply zone, where sellers took control before')}
+  else if(Math.abs(fvg)===1&&fvg===sg){strat='Sniper Entry (SMC fair value gap)';why='price pulled back into a fair value gap in the trend direction'}
+  else if(bos){strat=mss?'Market Structure Shift (MSS)':'Break of Structure (BOS)';why='price just closed '+(bos>0?'above the last swing high':'below the last swing low')+' with a strong candle'+(mss?', flipping the structure':', continuing the trend')}
+  else if((up||dn)&&vol>-.1){strat='Breakout Continuation';why='price closed beyond the 20-bar '+(up?'high':'low')+' with volatility holding'}
+  else if(body&&body===sg&&X.tf<=7){strat='Candle Body Scalp';why='a strong full-body candle is leading in the trend direction'}
+  else if(pb){strat='Trend Pullback';why='trend is '+(pb>0?'up':'down')+' and price is back near the 12 EMA'}
+  else if(Math.abs(score)>=.3&&Math.sign(trend)===sg&&Math.sign(mom)===sg){strat='Momentum Follow';why='trend and momentum both point '+(sg>0?'up':'down')}
+  if(X.scalp&&strat==='Stand aside'&&Math.abs(score)>=.3&&Math.sign(trend)===sg&&Math.sign(mom)===sg){strat='Aggressive Scalp';why='momentum and structure lean '+(score>0?'up':'down')+', so I take the quick profit'}
+  const zn=sd>0?Z.d:sd<0?Z.s:null,rj=sd>0?(L.l<=Z.d.zh+.1*atr&&L.c>L.o&&(L.c-L.l)/Math.max(1e-9,L.h-L.l)>=.55):sd<0?(L.h>=Z.s.zl-.1*atr&&L.c<L.o&&(L.h-L.c)/Math.max(1e-9,L.h-L.l)>=.55):false,sdOk=rj||bos*sd>0;
+  const sdT=strat==='Supply & Demand zone'&&trend*sd>-.5,conf=Math.max(Math.round(50+Math.abs(score)*45),sdT?(sdOk?72:58):0),side=sdT?(sd>0?'BUY':'SELL'):(Math.abs(score)<(X.scalp?.12:.24)||strat==='Stand aside'?'WAIT':score>0?'BUY':'SELL'),wait=side==='WAIT'&&strat!=='Stand aside';
+  const sp=(X.ask-X.bid)||0,slD0=X.scalp?Math.max(atr*1.05,sp*6+costDist(X.cur.symbolId)*1.5):Math.max(atr*1.3,sp*3),slD=sd&&strat==='Supply & Demand zone'?Math.max(Math.min(Math.abs(px-(sd>0?Z.d.zl:Z.s.zh))+.3*atr,atr*2.5),atr*(X.scalp?1.05:1),sp*3):bos&&/Structure/.test(strat)?Math.max(Math.min(Math.abs(px-(bos>0?pv.H:pv.L))+.35*atr,atr*2.2),atr*(X.scalp?1.05:1),sp*3):slD0,rr=X.scalp?1.2:1.5;
+  X.an={feat:[trend,mom,rs,vol,struct,pb,body,fvg],score,side,conf,strat:wait?'Stand aside (watching '+strat+')':strat,why:wait?'not strong enough to trade yet: '+why:why,rsi,atr,hi,lo,px,slD,tpD:slD*rr,rr,e12:e12[n],e26:e26[n],e12s:e12,e26s:e26,zone:zn,zones:Z,bos,sdOk};
+  if(X.an.strat==='Supply & Demand zone')X.an.why+=sdOk?' | confirmed by '+(rj?'a rejection candle from the zone':'a structure break'):' | still waiting for a rejection candle or structure break';
+  trapLayer();brainLayer();if(X.dry)return;sync();explain();maybeTrade(X.an)}
+/* feed the dashboard panels with the real analysis */
+function sync(){const a=X.an,br=X.brain&&Date.now()-X.brain.at<120000?X.brain:null,rp=.5+a.score*.5,cf=br?br.confidence/100:0;
+  S.prob=cl(br?(br.action==='BUY'?.5+cf/2:br.action==='SELL'?.5-cf/2:rp):rp,.015,.985);S.probHist.push(S.prob);S.mktHist.push(cl(rp,.015,.985));if(S.probHist.length>240){S.probHist.shift();S.mktHist.shift()}
+  const f=a.feat,u=v=>cl((v+1)/2,.01,.99);
+  S.sig={TREND:u(f[0]),MOMENTUM:u(f[1]),RSI:u(f[2]),VOLATILITY:u(f[3]),STRUCTURE:u(f[4]),PULLBACK:u(f[5]),BODY:u(f[6]),'FVG/SMC':u(f[7]),NEWS:cl(X.news?X.news.heat:0,.01,.99),BRAIN:S.prob};
+  S.startPrice=X.bars.length?X.bars[X.bars.length-1].o:a.px;renderStack();renderSignals()}
+function explain(){const a=X.an;if(!a||!X.cur)return;const key=a.side+a.strat,n=Date.now();
+  if(key!==X.lastKey&&n-X.lastSay>25000){X.lastKey=key;X.lastSay=n;const t=X.cur.symbolName+'. '+(a.side==='WAIT'?'I am standing aside. ':'I see a '+a.side+' setup. ')+'Strategy: '+a.strat+'. '+a.why+'.';addLog(a.side==='WAIT'?'pass':'bet',a.side+' '+a.conf+'% — '+a.strat+': '+a.why,'');talk(t)}}
+/* ---- Megan's money management + execution (every guard is on purpose) ---- */
+function riskUi(){const e=$('riskLbl');if(e)e.textContent=X.auto?'AUTO '+X.riskPct+'%':'MANUAL'}
+function plan(a){const f=X.cur&&X.cur.full;if(!f||!f.lotSize)return null;const step=f.stepVolume||1,minV=f.minVolume||1,sl=a.slD;
+  let lots=X.lot;if(X.auto&&X.bal>0)lots=planLots();
+  let vol=Math.round(lots*f.lotSize);vol=Math.min(f.maxVolume||vol,Math.max(minV,Math.round(vol/step)*step));const risk=sl*vol/100;
+  if($('stakeVal'))$('stakeVal').textContent=(vol/f.lotSize).toFixed(2);
+  return{vol,risk,lots:vol/f.lotSize}}
+function openTrade(side,slD,tpD,why){const a=X.an,id=X.cur&&X.cur.symbolId,n=Date.now();X.whyNot='';X.gridAdd=0;if(!id||!a){X.whyNot='Megan has not analysed this pair yet, try again in a second.';return false}
+  if(X.dis[id]>n||symOff((X.rules[id]||{}).mode)){if(!X.disNote[id]){X.disNote[id]=1;note('The broker currently allows no new trades on '+X.cur.symbolName+' (close-only or disabled), so I will not send orders on it. Pick another pair, for example BTCUSD.','pass')}X.whyNot='The broker has trading disabled for '+X.cur.symbolName+' on this account. Pick another pair.';return false}
+  if(weekendNow()&&!open24(X.cur.symbolName)){X.whyNot='Forex, gold and indices are closed on weekends. Megan trades crypto only until Sunday 22:00 UTC.';if(!X.wkNote||n-X.wkNote>6e5){X.wkNote=n;note('Weekend: '+X.cur.symbolName+' is closed. I trade crypto only until Sunday 22:00 UTC. Turn on AUTO PAIR and I will pick a crypto pair myself.','pass','Weekend. That market is closed. I trade crypto only.')}return false}
+  if(X.pl.length||X.posSyms[id]){const same=X.pl.filter(q=>q.sym===id),dd=side==='BUY'?1:-1,px0=side==='BUY'?X.bid:X.ask,cd=costDist(id);
+    let bn=0;same.forEach(q=>{bn+=(floatOf(q)||0)-cd*q.vol/100});const gridOk=X.scalp&&X.pl.length===same.length&&same.length>0&&same.length<maxPos()&&same.every(q=>q.side===side)&&bn>=.15*gro()*same.length&&(a.regime==='TREND'||a.regime==='MIXED')&&n-(X.lastOrderAt||0)>=3000;   /* add only while the basket is green */
+    if(!gridOk){X.whyNot='A trade is already open'+(X.pl[0]?' on '+symName(X.pl[0].sym):'')+'. Megan trades one pair at a time'+(X.scalp&&same.length?' and adds to it only while the basket is in profit':'')+'.';return false}X.gridAdd=same.length+1}if(n<X.lock||n<X.pauseUntil){X.whyNot='Megan is taking a short breather.';return false}{const sr=(X.ask-X.bid)/a.atr;if(sr>(X.scalp?.5:.3)){X.whyNot='The spread is '+sr.toFixed(1)+' times an average candle ('+(X.ask-X.bid).toFixed(X.digits>3?3:2)+'), too expensive for this mode.';return false}
+    if(X.scalp&&sr>.5&&(!X.spN||n-X.spN>18e5)){X.spN=n;note('Heads-up: the spread on '+X.cur.symbolName+' is about '+sr.toFixed(1)+' candles, so every scalp starts that far behind. I still trade it. AUTO PAIR prefers cheaper pairs when they are open.','pass',null)}}
+  slD=Math.max(slD,Math.min(minStop(id)*1.3,(X.ask||X.bid||1e9)*.012));tpD=Math.max(tpD,Math.min(minTake(id)*1.3,(X.ask||X.bid||1e9)*.03));X.lastSL=slD;
+  const p=plan({slD});if(!p){X.whyNot='The broker has not sent the trading details of this pair yet.';return false}if(p.err){if(n>X.errAt){X.errAt=n+120000;note(p.err,'pass')}return false}
+  if(X.pl.length){let ore=0;X.pl.forEach(q=>{const dq=q.side==='BUY'?1:-1;ore+=q.sl?Math.max(0,(q.entry-q.sl)*dq)*q.vol/100:p.risk});const lim=X.bal*X.riskPct*1.6/100;if(X.bal>0&&ore+p.risk>lim){X.whyNot='Total open risk would be about $'+(ore+p.risk).toFixed(2)+', above my basket limit of $'+lim.toFixed(2)+'.';return false}}
+  X.lock=n+(X.scalp?(X.gridAdd?4000:8000):45000);X.ph='ACT';const q5=Math.pow(10,5-Math.min(5,X.digits||5)),rel=v=>Math.max(q5,Math.round(v*1e5/q5)*q5);
+  {const sp=Math.max(0,X.ask-X.bid),k1=X.scalp?.3:.5,k2=X.scalp?.6:1,t1=Math.max(slD*k1,sp*3),t2=Math.max(slD*k2,t1*1.6),t3=X.legs>1?Math.max(tpD,t2*1.4):Math.max(tpD,X.runner*100/p.vol);
+  X.lastOrderAt=Date.now();(X.legs>1?[t1,t2,t3].slice(0,X.legs):[t3]).forEach(td=>send(2106,{ctidTraderAccountId:X.acct,symbolId:id,orderType:1,tradeSide:side==='BUY'?1:2,volume:p.vol,relativeStopLoss:rel(slD),relativeTakeProfit:rel(Math.max(td,minTake(id)*1.3)),label:'MQE'}))}
+  X.last={strat:a.strat,regime:a.regime||'',side,at:Date.now()};LS.mq_last=JSON.stringify(X.last);
+  {const b=side==='BUY',en=b?X.ask:X.bid,d=b?1:-1,k1=X.scalp?.3:.5,k2=X.scalp?.6:1;note(side+' '+X.cur.symbolName+' ('+(why||a.strat)+') — Entry: ('+fx(en-a.atr*.25)+' - '+fx(en+a.atr*.25)+') SL: '+fx(en-d*slD)+' PROFIT RULES: from $'+sc$(X.lockStart)+' never bank under $'+sc$(X.minBank)+', from $'+sc$(X.guardStart)+' give back only $'+sc$(X.breath)+' | '+p.lots.toFixed(2)+' lot, risk about '+p.risk.toFixed(2)+(X.gridAdd?' GRID ADD #'+X.gridAdd+' of up to '+maxPos()+' (every earlier position is protected and the market is trending).':'')+'. Megan manages it with those profit rules.','bet','Entering '+side+' on '+X.cur.symbolName+'. '+(why||a.strat)+'.')}setTimeout(refresh,1500);return true}
+/* ---- a signal must pass every professional check before Megan fires ---- */
+const zKey=z=>z.zl.toFixed(X.digits||5)+'_'+z.zh.toFixed(X.digits||5);
+function qualify(a){const n=Date.now(),d=a.side==='BUY'?1:-1,tr=a.feat[0],mo=a.feat[1],rev=/Sweep|Failed Breakout|Supply|Shift|Rider/.test(a.strat);
+  if(a.zone&&/Supply/.test(a.strat)&&X.zoneUsed&&X.zoneUsed[zKey(a.zone)]>n)return 'this zone was already traded, only the first return to a zone counts';
+  {const B=X.bars,nb=B.length-1;if(nb>10){const f=B[nb];
+    if((f.c-B[nb-5].c)*d<-1.2*a.atr)return 'price just moved hard the other way over the last few candles';
+    if(!rev&&/Trend Pullback|Sniper|Momentum Follow/.test(a.strat)){const pb=(B[nb-1].c-B[nb-1].o)*d,cur=(f.c-f.o)*d;
+      if(cur<-.25*a.atr)return 'the candle moving right now is against a '+a.side+', I wait for it to turn';
+      if(pb<-1.0*a.atr&&cur<.2*a.atr)return 'the last candle was a strong move against a '+a.side+' and has not resumed yet, I wait for it'}
+    if(!rev&&nb>=30&&!/Breakout|Structure|Pullback Resume/.test(a.strat)){let ex=d<0?1e18:-1e18;for(let i=nb-30;i<=nb;i++)ex=d<0?Math.min(ex,B[i].l):Math.max(ex,B[i].h);
+      if((d<0?a.px-ex:ex-a.px)/a.atr<1.2)return 'not enough room: a '+a.side+' here runs straight into the recent '+(d<0?'low (support)':'high (resistance)')+', so I wait for a better price'}
+    if(!rev&&!/Pullback Resume/.test(a.strat)){let run=0;for(let i=nb;i>=0&&(B[i].c-B[i].o)*d>0;i--)run++;
+      if(run>=(X.pl.length?5:3)||(f.c-B[nb-3].o)*d>1.6*a.atr||Math.abs(a.px-a.e12)>1.8*a.atr)return 'late: the move already ran about 3 candles, I wait for a small pullback and join when it resumes'}
+    if(rev&&!(/Supply/.test(a.strat)&&a.sdOk)){const cross=d>0?a.px>a.e12:a.px<a.e12;if(!((f.c-f.o)*d>0&&cross&&mo*d>-.2))return 'a reversal is not confirmed yet: I need price back through the 12 EMA and a candle in my direction'}}}
+  {const heat=X.news?X.news.heat:0;if(heat>.7&&a.conf<minConf()+8)return 'high-impact news is near, so I need a much stronger signal'}
+  if(X.ban&&X.ban[a.strat]>n)return a.strat+' was stopped out within seconds a moment ago, so I skip it for a few minutes';
+  const early=/Breakout Continuation|Structure|Candle Body|Pullback Resume|Aggressive/.test(a.strat);
+  if(!rev&&(early?(tr*d<-.2||mo*d<.03):(tr*d<.08||mo*d<-.05)))return early?'momentum does not clearly point '+(d>0?'up':'down')+' yet':'the trend and momentum do not both agree with a '+a.side;
+  if(rev&&tr*d<-.55)return 'that would fight a strong trend';
+  if(X.ll&&X.ll.side===a.side&&n-X.ll.at<(X.scalp?6e4:15e4))return 'I was just stopped out on the '+a.side+' side, I wait for the market to prove itself';
+  if(X.lc&&X.lc.pn<0&&n-X.lc.at<2e4)return 'cooling off for a few seconds after a loss';
+  if(X.lossRun>=2&&a.conf<minConf()+8)return 'after '+X.lossRun+' losses I need a much stronger signal';
+  const br=X.brain&&n-X.brain.at<12e4?X.brain:null;
+  if(br&&br.confidence>=55&&br.action!=='HOLD'&&br.action!==a.side)return 'my AI brain reads the opposite way ('+br.action+' '+br.confidence+'%)';
+  if(br&&br.action==='HOLD'&&br.confidence>=75)return 'my AI brain says wait: '+String(br.reason||'').slice(0,80);
+  const key=a.side+'|'+a.strat;if(X.sigKey!==key){X.sigKey=key;X.sigAt=n}
+  if(n-X.sigAt<(X.scalp?2500:5000))return 'confirming that the signal holds, not a one-tick flicker';
+  return ''}
+function maybeTrade(a){if(!X.run)return;if(a.side==='WAIT'){X.sigKey='';return}if(a.conf<minConf())return;
+  const q=qualify(a);let ok=false;if(q){X.whyNot=q;ok=false}else{ok=openTrade(a.side,a.slD,a.tpD,a.strat);if(ok===true&&a.zone&&/Supply/.test(a.strat)){X.zoneUsed=X.zoneUsed||{};X.zoneUsed[zKey(a.zone)]=Date.now()+36e5}}
+  if(ok===false&&X.whyNot&&!/already open|breather|confirming/.test(X.whyNot)&&Date.now()-(X.wnAt||0)>25000){X.wnAt=Date.now();note('I see '+a.side+' ('+a.strat+') but I am not firing: '+X.whyNot,'pass',q?undefined:null)}}
+async function cycle(){const a=X.an;if(!X.run||X.think||!a||!X.cur||!window.Megan)return;X.lastCyc=Date.now();const id=X.cur.symbolId;
+  if(X.posSyms[id]||Date.now()<X.lock){X.ph='WATCH';return}X.think=true;X.ph='THINK';
+  try{const nm=['TREND','MOMENTUM','RSI','VOLATILITY','STRUCTURE','PULLBACK','BODY','FVG/SMC'],st={symbol:X.cur.symbolName,timeframe:TFN[X.tf],price:X.bid||a.px,bid:X.bid,ask:X.ask,spread:X.ask-X.bid,atr:a.atr,
+      indicators:{ema12:a.e12,ema26:a.e26,rsi:a.rsi,high20:a.hi,low20:a.lo},signals:Object.fromEntries(nm.map((n,i)=>[n,+a.feat[i].toFixed(2)])),ruleEngine:{side:a.side,confidence:a.conf,strategy:a.strat,why:a.why},
+      candlesOHLC_last30:X.bars.slice(-30).map(b=>[b.o,b.h,b.l,b.c].map(v=>+v.toFixed(X.digits))),news:X.news?X.news.txt:'',newsHeat:X.news?X.news.heat:0,
+      account:{equity:X.bal,dailyLoss:Math.max(0,(X.bal0||X.bal)-X.bal),openRisk:0},riskConfig:{maxRiskPercent:1.5,maxDailyLossPercent:3,maxOpenRiskPercent:3,minRewardRisk:1.5},
+      instruction:'Real broker data. Decide BUY, SELL or HOLD. Give entry, stopLoss and takeProfit as prices. If a high-impact news event is imminent, HOLD unless post-release momentum confirms. riskPercent must not exceed 1.5.'};
+    const d=await Promise.race([Megan.evaluateForex(st),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),12000))]);if(typeof d.confidence==='number')X.brain={...d,at:Date.now()};X.ph='DECIDE';sync();if(typeof d.confidence==='number'&&d.confidence>0)addLog(d.action==='HOLD'?'pass':'bet','BRAIN '+d.action+' '+d.confidence+'% — '+d.reason,'');
+    X.lastHold=d.reason;
+  }catch(e){X.brain=null;if(!X.bo||Date.now()-X.bo>3e5){X.bo=Date.now();addLog('sys','Brain advisor offline — Megan keeps trading from her own live entry, stop and target.','')}}
+  finally{X.think=false;if(X.ph!=='ACT')X.ph='WATCH'}}
+async function newsTick(){if(!window.Megan||!X.cur)return;
+  try{const r=await Megan.research(X.cur.symbolName+' forex market news today economic calendar high impact events central bank inflation',{recencyDays:1,maxSources:5});
+    const txt=String(r.answer||r.summary||(r.results||r.sources||[]).slice(0,5).map(x=>(x.title||'')+': '+(x.content||x.snippet||'')).join(' | ')).replace(/\s+/g,' ').slice(0,900);
+    const heat=Math.min(1,(txt.match(/\b(CPI|NFP|nonfarm|payrolls|FOMC|Fed|ECB|BoE|BoJ|rate decision|inflation|GDP|tariff|war|crisis|high.impact)\b/gi)||[]).length/6);
+    X.news={txt,heat,at:Date.now()};addLog('sys','NEWS heat '+Math.round(heat*100)+'% — '+txt.slice(0,110),'')}catch(e){X.news={txt:'',heat:0,at:Date.now()}}}
+const pxOf=id=>X.cur&&id===X.cur.symbolId?{bid:X.bid,ask:X.ask}:X.px[id],symName=id=>(X.syms.find(s=>s.symbolId===id)||{}).symbolName||id,decs=v=>(String(v).split('.')[1]||'').length;
+function floatOf(q){const p=pxOf(q.sym);if(!p||!p.bid||!p.ask||!q.entry)return null;return(q.side==='BUY'?p.bid-q.entry:q.entry-p.ask)*q.vol/100}
+/* market hours: forex, gold, silver and index CFDs are closed from Friday 21:00 UTC to Sunday 22:00 UTC; crypto (and Deriv synthetics) never close */
+const CRYPTO=/^(BTC|ETH|LTC|XRP|BCH|ADA|DOT|SOL|DOGE|BNB|XLM|LINK|TRX|AVAX|MATIC|POL|UNI|ATOM|XMR|EOS|DASH|NEO|IOTA|SHIB|PEPE|AAVE|ALGO|APT|ARB|ETC|FIL|HBAR|ICP|NEAR|SUI|TON|VET|XTZ|ZEC|BITCOIN|ETHEREUM|LITECOIN|RIPPLE|DOGECOIN|SOLANA|CARDANO)(?:(?:USD|USDT|USDC|EUR|GBP|JPY|AUD|CAD|CHF|ETH|BTC)[A-Z]{0,3})?$/,SYNTH=/^(VOLATILITY|BOOM|CRASH|JUMP|STEP|RANGEBREAK|DEX|DRIFT|MULTISTEP|SKEW)/;
+const nm0=s=>String(s||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase(),open24=name=>{const n=nm0(name);return CRYPTO.test(n)||SYNTH.test(n)};
+const isWknd=t=>{const d=t.getUTCDay(),hr=t.getUTCHours();return d===6||(d===5&&hr>=21)||(d===0&&hr<22)},weekendNow=()=>isWknd(X.fakeNow?new Date(X.fakeNow):new Date());
+const symOff=m=>m!=null&&m!==0&&m!=='ENABLED'&&m!=='0',minStop=id=>Math.max((X.rules[id]||{}).sl||0,X.minSL[id]||0),minTake=id=>(X.rules[id]||{}).tp||0;
+const costDist=sym=>{const sf=X.sf[sym],side=X.cs[sym]||3.5/((sf&&sf.lot)||1e4);return 2*side*100}; /* round-trip commission as a PRICE distance (same for any lot size) */
+const gp=q=>{const s=X.st[q.id],p=pxOf(q.sym);return !!(s&&p&&protOf(q,s,p).tier>=2)};
+/* lot ladder: 0.01 until the balance doubles, then 0.02, then 0.03 ... one step at a time, never a jump */
+const planLots=()=>{const f=X.cur&&X.cur.full;if(!f||!f.lotSize)return X.lot;const mn=(f.minVolume||1)/f.lotSize;let l=X.lot;if(X.auto&&X.bal>0&&X.balBase)l=Math.max(1,Math.min(10,Math.floor(X.bal/X.balBase)))*mn;return Math.min(X.maxLot,Math.max(mn,l))};
+/* profit amounts scale with the lot step of the position: 0.01 lot = x1, 0.02 lot = x2 */
+const gro=q=>{try{if(q){const sf=X.sf[q.sym];if(sf&&sf.min)return Math.min(10,Math.max(1,q.vol/sf.min))}else if(X.pl[0])return gro(X.pl[0]);const f=X.cur&&X.cur.full;if(f&&f.lotSize&&f.minVolume)return Math.min(10,Math.max(1,planLots()*f.lotSize/f.minVolume))}catch(e){}return 1},sc$=v=>+(v*gro()).toFixed(2),minConf=()=>+LS.mq_minc||(X.scalp?56:66);   /* profit targets grow with the account; minimum confidence to fire */
+const maxPos=()=>Math.min(8,4+Math.floor(Math.max(0,(X.bal/(X.balBase||X.bal||1)-1))/.25));   /* grid size grows as the account grows */
+function tryAmend(q,s,target,px,d,m,p,n){const amin=Math.max(minStop(q.sym),X.amendMin[q.sym]||0)*1.1;let t=target;if((px-t)*d<amin)t=px-d*amin;   /* never closer than the broker accepts */
+  const better=d>0?t>q.sl:t<q.sl,valid=d>0?t<p.bid:t>p.ask,step=Math.max((p.ask-p.bid)*.5,.1/m);if(!better||!valid||Math.abs(t-q.sl)<step||n<(s.noAmend||0))return 0;
+  const ns=+t.toFixed(Math.max(decs(q.entry),decs(q.sl)));X.amendAt[q.id]=n+3000;X.lastAmend={id:q.id,sym:q.sym,sl:ns,px,at:n};
+  send(2110,{ctidTraderAccountId:X.acct,positionId:q.id,stopLoss:ns,takeProfit:q.tp||undefined});return ns}
+/* PROFIT PROTECTION, per position, in dollars:
+   - from $0.80 (x account growth) she never banks less than $0.45 and keeps at least half of the peak
+   - from $1.50 the market may take back only $0.60 or 30% of the peak, whichever is smaller
+   - all dollar amounts scale up as the account grows (max x6), so the profits she takes grow with the balance */
+function protOf(q,s,p){const m=q.vol/100,sp=p.ask-p.bid,cd=costDist(q.sym),G=gro(q),mfe=s.mfe||0,
+    bankD=X.minBank*G/m+cd,brD=X.breath*G/m,arm1=Math.max(X.lockStart*G/m,bankD*1.05),arm2=Math.max(X.guardStart*G/m,bankD+brD);
+  let L=0,tier=0,breathD=brD;
+  if(mfe>=arm2){breathD=Math.max(Math.min(brD,.3*mfe),sp*1.5);L=Math.max(bankD,mfe-breathD);tier=2}   /* never give back more than $breath or 30% of the peak */
+  else if(mfe>=arm1){breathD=Math.max(mfe-bankD,sp);L=Math.max(bankD,.5*mfe);tier=1}                    /* first small profit: bank at least half the peak */
+  return{m,L,tier,bankD,breathD}}
+/* ---- BASKET: all positions on a pair are managed together by their combined net P&L (after commission) ---- */
+function basket(n){const L=X.pl;if(!L.length||(L.length<2&&!(X.pool>0))){X.bk=null;return}if(n<(X.bkHold||0))return;if(L.some(q=>n<(X.closing[q.id]||0)))return;
+  const G=Math.max(1,L.reduce((a,q)=>a+gro(q),0)/3);let fl=0;
+  for(const q of L){const f=floatOf(q);if(f===null)return;fl+=f-costDist(q.sym)*q.vol/100}
+  const pool=X.pool>0?X.pool:0,net=pool+fl,tp=X.basketTP*G;
+  /* a position still open after the others banked profit: give it room, and let it leave safely at break-even, never eating the banked profit */
+  if(pool>0)for(const q of L){const s=X.st[q.id],f=floatOf(q),g=gro(q),cc=costDist(q.sym)*q.vol/100;if(!s||f===null)continue;s.worst=Math.min(s.worst||0,f);
+    if(s.worst<=-.3*g&&f>=cc+.08*g){X.closing[q.id]=n+6000;send(2111,{ctidTraderAccountId:X.acct,positionId:q.id,volume:q.vol});X.lock=Math.min(X.lock||0,n+500);note('RECOVERY EXIT: '+symName(q.sym)+' '+q.side+' dipped to -$'+Math.abs(s.worst).toFixed(2)+' and came back to break-even, so I close it safely. The $'+pool.toFixed(2)+' I already banked stays banked.','sys',null);setTimeout(refresh,700);return}
+    if(!s.wide&&f<0&&q.sl&&n>=(X.amendAt[q.id]||0)&&pool>=1.5*g){const d=q.side==='BUY'?1:-1,m=q.vol/100,cur=(q.entry-q.sl)*d;
+      if(cur>0){const want=Math.min(1.5*cur,.5*pool/m);if(want>cur*1.08){const ns=+(q.entry-d*want).toFixed(Math.max(decs(q.entry),decs(q.sl)));s.wide=1;X.amendAt[q.id]=n+3000;
+        send(2110,{ctidTraderAccountId:X.acct,positionId:q.id,stopLoss:ns,takeProfit:q.tp||undefined});
+        note('BREATHER: I already banked $'+pool.toFixed(2)+' this run, so I give the open '+q.side+' more room (stop moved to '+ns+'). It may not take back more than half of that banked profit.','sys',null);setTimeout(refresh,1200)}}}}
+  if(!X.bk||X.bk.cnt!==L.length)X.bk={cnt:L.length,peak:net};if(net>X.bk.peak)X.bk.peak=net;const pk=X.bk.peak;let why='';
+  if(net>=tp)why='BASKET TARGET: the combined profit of this run reached about $'+net.toFixed(2)+' (target $'+tp.toFixed(2)+'). I close everything that is open.';
+  else if(pk>=2*G&&net<=pk-Math.min(G,.3*pk))why='BASKET GUARD: the combined profit peaked at $'+pk.toFixed(2)+' and gave back too much, so I close all open positions and keep about $'+net.toFixed(2)+'.';
+  else if(pk>=X.lockStart*G&&pk<2*G&&net<=Math.max(X.minBank*G,.5*pk))why='BASKET LOCK: the combined profit peaked at $'+pk.toFixed(2)+' and fell back to my minimum, so I close all open positions and keep about $'+net.toFixed(2)+'.';
+  else if(pool>=G&&fl<0&&net<=.5*pool)why='BREATHER LIMIT: the open position took back half of the $'+pool.toFixed(2)+' I banked this run, so I close it now and keep about $'+net.toFixed(2)+' in total.';
+  if(!why)return;L.forEach(q=>{X.closing[q.id]=n+6000;send(2111,{ctidTraderAccountId:X.acct,positionId:q.id,volume:q.vol})});X.lock=Math.min(X.lock||0,n+500);X.bk=null;note(why+' (an estimate, the broker fill decides the exact result) Looking for the next entry.','sys',null);setTimeout(refresh,700)}
+function softStop(){if(!X.run)return;const n=Date.now();basket(n);
+  X.pl.forEach(q=>{if(n<(X.closing[q.id]||0))return;const p=pxOf(q.sym);if(!p||!p.bid||!p.ask||!q.entry||!q.vol)return;
+    const d=q.side==='BUY'?1:-1,px=d>0?p.bid:p.ask;let s=X.st[q.id];if(!s)s=X.st[q.id]={r0:Math.abs(q.entry-(q.sl||q.entry)),k:0,mfe:0};
+    const pr=(px-q.entry)*d;if(pr>(s.mfe||0))s.mfe=pr;const P=protOf(q,s,p);if(!P.tier)return;
+    if(pr<=P.L+.15*Math.min(P.bankD,P.breathD)){if(!s.hit){s.hit=1;s.hitAt=n}else s.hit++;   /* small margin so a gap between ticks does not push the exit below the locked amount */
+      if(pr<=P.L-.25*P.breathD||s.hit>=2||n-s.hitAt>=800){X.closing[q.id]=n+6000;s.hit=0;send(2111,{ctidTraderAccountId:X.acct,positionId:q.id,volume:q.vol});X.lock=Math.min(X.lock||0,n+500);
+        note((P.tier===2?'PROFIT GUARD: ':'PROFIT LOCK: ')+symName(q.sym)+' '+q.side+' peaked at $'+(s.mfe*P.m).toFixed(2)+(P.tier===2?' and the market took back $'+Math.max(0,(s.mfe-pr)*P.m).toFixed(2):' and came back to my minimum bank')+', so I close it now and keep about $'+(pr*P.m).toFixed(2)+'. Looking for the next entry.','sys',null);setTimeout(refresh,700)}}
+    else s.hit=0})}
+function monitor(){if(!X.run)return;const n=Date.now();softStop();
+  X.pl.forEach(q=>{const p=pxOf(q.sym);if(!p||!p.bid||!p.ask||!q.entry||!q.vol)return;
+    const px=q.side==='BUY'?p.bid:p.ask,d=q.side==='BUY'?1:-1;let s=X.st[q.id];if(!s){s=X.st[q.id]={r0:Math.abs(q.entry-(q.sl||q.entry)),k:0,mfe:0};LS.mq_st=JSON.stringify(X.st)}
+    const pr=(px-q.entry)*d;if(pr>(s.mfe||0))s.mfe=pr;
+    if(!q.sl||n<(X.amendAt[q.id]||0))return;const P=protOf(q,s,p);if(!P.tier)return;
+    const ns0=q.entry+d*P.L,already=d>0?ns0<=q.sl:ns0>=q.sl;
+    if(already){if(P.tier>s.k){s.k=P.tier;LS.mq_st=JSON.stringify(X.st)}return}
+    const ns=tryAmend(q,s,ns0,px,d,P.m,p,n);if(!ns)return;
+    const prot=(ns-q.entry)*d*P.m,msg=P.tier>s.k?(P.tier===1?'$'+sc$(X.lockStart)+' profit reached — ':'$'+sc$(X.guardStart)+' profit reached — '):'';
+    s.k=Math.max(s.k,P.tier);LS.mq_st=JSON.stringify(X.st);
+    note(symName(q.sym)+' '+q.side+' — '+msg+'backup stop at the broker moved to '+ns+' ($'+Math.max(0,prot).toFixed(2)+' protected). My own '+(P.tier===2?'guard':'lock')+' can close it earlier.','sys',msg?(P.tier===1?'Minimum profit is locked.':'Profit guard is on.'):null);
+    setTimeout(refresh,1200)})}
+setInterval(monitor,1000);
+/* ---- Megan alive: every ~22s she says what the market is doing, what she plans, and how the open trade stands ---- */
+function narrate(){if(!X.run||!X.an||!X.cur)return;const n=Date.now();if(n-(X.narAt||0)<22000)return;X.narAt=n;
+  const a=X.an,nm=X.cur.symbolName,tr=a.feat[0],dir=tr>.15?'up':tr<-.15?'down':'sideways',reg=(a.regime||'mixed').toLowerCase(),Z=a.zones,zt=(Z&&(Z.d||Z.s))?' Fresh zones: '+(Z.d?'demand '+fx(Z.d.zl)+'-'+fx(Z.d.zh):'')+(Z.d&&Z.s?', ':'')+(Z.s?'supply '+fx(Z.s.zl)+'-'+fx(Z.s.zh):'')+'.':' No fresh supply or demand zone right now.';let t;
+  const q=X.pl[0];
+  if(q){const f=floatOf(q),st=X.st[q.id],p=pxOf(q.sym),P=st&&p?protOf(q,st,p):null,pk=st&&st.mfe?st.mfe*q.vol/100:0;
+    t=nm+' '+q.side+' is '+(f>=0?'up $':'down $')+Math.abs(f||0).toFixed(2)+(pk?', best so far $'+pk.toFixed(2):'')+'. '+(P&&P.tier?'Profit is locked, I close it if it falls back to about $'+(P.L*P.m).toFixed(2)+'.':(f>0?'Waiting for $'+sc$(X.lockStart)+' to start locking profit.':'My stop protects me, I give it room.'))}
+  else if(a.side==='WAIT')t=nm+': '+reg+' market, trend '+dir+', RSI '+a.rsi.toFixed(0)+'. Not trading yet. '+a.why.replace(/^\[[^\]]*\]\s*/,'')+'. I wait for '+(dir==='sideways'?'a clean confirmed break':'a pullback with the trend')+'.'+zt;
+  else t=nm+': '+reg+' market, trend '+dir+'. I see a '+a.side+' ('+a.strat+') at '+a.conf+'%. '+(X.whyNot?'Not firing yet: '+X.whyNot+'.':'Checking it before I fire.');
+  addLog('sys',t,'');talk(t,1)}
+setInterval(narrate,3000);
+
+/* open trades + live floating P&L, inside the bot */
+function renderOpen(){const T=$('openPos');if(!T)return;let tot=0;
+  const rows=X.pl.map(q=>{const f=floatOf(q),p=pxOf(q.sym),dg=decs(q.entry),now=p?(q.side==='BUY'?p.bid:p.ask):0,st=X.st[q.id],stg=st&&st.k?(st.k>1?' · TP2✓':' · TP1✓'):'';if(f!==null)tot+=f;
+    if(!X.seen[q.id]){X.seen[q.id]=1;if($('tabs').children[3])$('tabs').children[3].click()}
+    return `<tr class="${f>0?'win':f<0?'loss':''}"><td><span class="pill ${q.side==='BUY'?'up':'dn'}">${q.side}</span></td><td>${symName(q.sym)}${(X.sf[q.sym]&&X.sf[q.sym].lot)?' '+(q.vol/X.sf[q.sym].lot).toFixed(2):''}${stg}</td><td>${(q.entry||0).toFixed(dg)}</td><td>${now?now.toFixed(dg):'—'}</td><td>${q.sl?q.sl.toFixed(dg):'—'}</td><td>${q.tp?q.tp.toFixed(dg):'—'}</td><td style="font-weight:700;color:${(f||0)>=0?'var(--green)':'var(--red)'}">${f===null?'—':(f>=0?'+':'')+f.toFixed(2)}</td><td><button class="cx" data-id="${q.id}" data-v="${q.vol}">✕</button></td></tr>`}).join('');
+  T.innerHTML=X.pl.length?'<table class="ot"><thead><tr><th></th><th>PAIR</th><th>ENTRY</th><th>NOW</th><th>SL</th><th>TP</th><th>FLOAT</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>':'<div style="font-size:8px;color:var(--mut);padding:3px 4px">No open trades. Megan is scanning.</div>';
+  const e=$('tbFlt');if(e){e.textContent=(tot>=0?'+':'')+tot.toFixed(2);e.style.color=tot>=0?'var(--green)':'var(--red)'}}
+X.seen={};setInterval(renderOpen,500);
+$('openPos').onclick=e=>{const b=e.target.closest('.cx');if(!b)return;send(2111,{ctidTraderAccountId:X.acct,positionId:+b.dataset.id,volume:+b.dataset.v});setTimeout(refresh,800)};
+function start(){
+  if(X.env==='live'&&!confirm('LIVE account: let Megan place real trades?'))return;
+  X.run=true;ui();note('Starting. I am scanning '+(X.cur?X.cur.symbolName:'the market')+' now. Scalp mode is '+(X.scalp?'ON':'OFF')+'.','sys');cycle();clearInterval(X.ct);X.ct=setInterval(cycle,20000);newsTick();clearInterval(X.nt);X.nt=setInterval(newsTick,6e5)}
+function stop(){X.run=false;X.ph='IDLE';clearInterval(X.ct);clearInterval(X.nt);ui()}
+const SP={until:0,q:[]};
+function talk(t,prio){if(!t)return;prio=prio||1;t=String(t).replace(/\$/g,' dollars ').replace(/\[[^\]]*\]\s*/g,'').replace(/[|()]/g,', ').replace(/,\s*,/g,',').replace(/,\s*\./g,'.').replace(/\s+/g,' ').trim().slice(0,200);
+  if(!X.voice){if(window.Megan&&Megan.voice)Megan.voice.showCaption(t);return}
+  if(prio>=3){SP.q=[];SP.until=0;try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}speakNow(t);return}
+  if(Date.now()<SP.until){if(prio>=2){SP.q.push(t);if(SP.q.length>2)SP.q.shift()}return}   /* busy: never cut her off; only important lines wait */
+  speakNow(t)}
+function speakNow(t){SP.until=Date.now()+Math.min(15000,1500+t.length*75);
+  if(window.Megan&&Megan.voice)Megan.voice.speak(t);
+  else if(window.speechSynthesis){try{speechSynthesis.cancel()}catch(e){}const u=new SpeechSynthesisUtterance(t);u.onend=u.onerror=()=>{SP.until=0;talkNext()};speechSynthesis.speak(u)}
+  setTimeout(talkNext,SP.until-Date.now()+80)}
+function talkNext(){if(Date.now()<SP.until)return;const t=SP.q.shift();if(t)speakNow(t)}
+window.MeganBotAdapter={describe:()=>'Morgan AI Quant Engine on cTrader ('+X.env+'). Real broker prices and candles; fires automatically from its own live entry, stop and target setups.',
+  getStatus:()=>'Balance '+X.bal.toFixed(2)+', session P and L '+(X.bal-(X.bal0===null?X.bal:X.bal0)).toFixed(2)+', '+X.open+' open positions. Trading is '+(X.run?'on':'off')+'.',
+  getChartContext:()=>{const a=X.an;if(!a||!X.cur)return null;return X.cur.symbolName+' '+TFN[X.tf]+'\nPrice '+fx(X.bid||a.px)+', EMA12 '+fx(a.e12)+', EMA26 '+fx(a.e26)+', RSI '+a.rsi.toFixed(0)+', ATR '+fx(a.atr)+', 20-bar high '+fx(a.hi)+', low '+fx(a.lo)+'\nRule engine: '+a.side+' '+a.conf+'% '+a.strat+'\nNews: '+(X.news?X.news.txt:'none yet')},
+  autoOn:()=>{start();return X.run},autoOff:()=>{stop();return true},aiAutoOn:()=>{start();return X.run},aiAutoOff:()=>{stop();return true},fireTrade:side=>{const a=X.an;return !!a&&openTrade(side,a.slD,a.tpD,'your voice confirmation')}};
+/* ================= PANELS (your layout, now fed by the broker) ================= */
+const STK=[['TREND',a=>a.feat[0]],['MOMENTUM',a=>a.feat[1]],['RSI',a=>a.feat[2]],['VOLATILITY',a=>a.feat[3]],['STRUCTURE/SMC',a=>[a.feat[4],a.feat[5],a.feat[6],a.feat[7]].reduce((m,v)=>Math.abs(v)>Math.abs(m)?v:m,0)],['NEWS HEAT',()=>X.news?X.news.heat:0]];
+function buildStack(){$('sideStack').innerHTML=STK.map((d,i)=>`<div class="mini" id="mini${i}"><div class="h"><span>${d[0]}</span></div><div class="val" id="mv${i}">—</div><canvas class="spark" id="ms${i}"></canvas></div>`).join('');X.sh=STK.map(()=>[])}
+function renderStack(){const a=X.an;if(!a)return;STK.forEach((d,i)=>{const v=d[1](a),h=X.sh[i];h.push(v);if(h.length>40)h.shift();$('mv'+i).textContent=(v>=0?'+':'')+v.toFixed(2);
+  const cv=$('ms'+i),c=fit(cv),w=cw(cv),hh=chh(cv);c.clearRect(0,0,w,hh);const mn=Math.min(...h),mx=Math.max(...h),rg=Math.max(.001,mx-mn),neg=v<0;$('mini'+i).className='mini '+(neg?'neg':'pos');
+  c.beginPath();h.forEach((q,j)=>{const x=j/Math.max(1,h.length-1)*w,y=hh-2-((q-mn)/rg)*(hh-4);j?c.lineTo(x,y):c.moveTo(x,y)});c.strokeStyle=neg?'#e5484d':'#18a058';c.lineWidth=1.1;c.stroke()})}
+function buildRight(){$('rightRail').innerHTML=`
+  <div class="rcard"><div class="h"><span>BAR CLOSES</span><span id="tfl">M5</span></div><div class="cd" id="cd">0:00</div></div>
+  <div class="rcard"><div class="h"><span>WIN RATE</span><span id="fillCt2">0</span></div><div class="wr-bar" id="wrBar"><div class="w" style="width:50%"></div><div class="l" style="width:50%"></div></div><div class="wr-lbl"><span id="wrW" style="color:var(--green)">50%</span><span id="wrL" style="color:var(--red)">50%</span></div></div>
+  <div class="rcard"><div class="h"><span>MEGAN P(UP)</span></div><div class="big-prob" id="bigProb">50%</div><div class="edge" id="edgeVal">—</div></div>
+  <div class="rcard"><div class="h"><span>SL / TP PLAN</span></div><div class="stake" id="ptb" style="font-size:9px">—</div><div class="streak-lbl">STREAK <b id="streakVal" style="color:var(--green)">+0</b></div></div>
+  <div class="rcard"><div class="h"><span>LOT</span><span id="riskLbl">NO CAP</span></div><div class="stake" style="color:var(--ink)"><span id="stakeVal">0.01</span></div>
+    <div class="action-row"><button id="btnUp" class="primary">BUY</button><button id="btnDn">SELL</button></div><div class="action-row"><button id="btnStake-" style="flex:.6">−</button><button id="btnStake+" style="flex:.6">+</button><button id="btnFlat" style="flex:1.4">FLAT</button></div></div>`;
+  const lot=d=>{X.auto=false;LS.mq_auto='0';riskUi();X.lot=Math.max(.01,+(X.lot+d).toFixed(2));LS.mq_lot=X.lot;$('stakeVal').textContent=X.lot.toFixed(2)};
+  riskUi();$('riskLbl').onclick=()=>{const st=!X.auto?1:X.riskPct>=3?0:X.riskPct+1;X.auto=st>0;if(st>0)X.riskPct=st;LS.mq_auto=X.auto?'1':'0';LS.mq_risk=X.riskPct;riskUi();note(X.auto?'AUTO LOT on: I trade the minimum lot (0.01) and go up one step (0.02, 0.03...) each time the balance doubles. No jumps. Total open risk is still capped at '+(X.riskPct*1.6).toFixed(1)+'% of the balance.':'MANUAL lot: '+X.lot.toFixed(2),'sys',X.auto?'Auto lot is on.':'Manual lot.')};
+  $('stakeVal').textContent=X.lot.toFixed(2);$('stakeVal').onclick=()=>{const v=parseFloat(prompt('Lot size',X.lot));if(v>0){X.auto=false;LS.mq_auto='0';riskUi();X.lot=Math.max(.01,v);LS.mq_lot=X.lot;$('stakeVal').textContent=X.lot.toFixed(2)}};
+  $('btnStake-').onclick=()=>lot(-.01);$('btnStake+').onclick=()=>lot(.01);
+  const man=s=>{const a=X.an;if(!a){toast('Waiting for market data');return}if(!openTrade(s,a.slD,a.tpD,'manual '+s))toast(X.whyNot||'Not sent: the broker has not sent the pair details yet')};
+  $('btnUp').onclick=()=>man('BUY');$('btnDn').onclick=()=>man('SELL');
+  $('btnFlat').onclick=()=>{let n=0;X.pl.forEach(q=>{if(X.cur&&q.sym===X.cur.symbolId){send(2111,{ctidTraderAccountId:X.acct,positionId:q.id,volume:q.vol});n++}});toast(n?'Closing '+n+' position(s)':'Nothing open on this pair');setTimeout(refresh,1200)}}
+function renderRight(){const tl=TFM[X.tf]*60-(Date.now()/1000%(TFM[X.tf]*60)),m=Math.floor(tl/60),s=Math.floor(tl%60);$('cd').textContent=m+':'+String(s).padStart(2,'0');$('tfl').textContent=TFN[X.tf];$('lcTime').textContent='NEXT '+TFN[X.tf]+' BARS';
+  const n=S.wins+S.losses,wr=n?S.wins/n*100:50;$('wrBar').querySelector('.w').style.width=wr+'%';$('wrBar').querySelector('.l').style.width=(100-wr)+'%';$('wrW').textContent=wr.toFixed(0)+'%';$('wrL').textContent=(100-wr).toFixed(0)+'%';$('fillCt2').textContent=n+' CLOSED';
+  const bp=$('bigProb');bp.textContent=(S.prob*100).toFixed(1)+'%';bp.style.color=S.prob>=.55?'var(--green)':S.prob<=.45?'var(--red)':'var(--ink)';
+  const e=(S.prob-.5)*200;$('edgeVal').textContent=(e>=0?'▲ ':'▼ ')+Math.abs(e).toFixed(0)+'% '+(e>=0?'BUY':'SELL');$('edgeVal').style.color=e>=0?'var(--green)':'var(--red)';
+  const a=X.an;$('ptb').textContent=a?'SL '+fx(a.slD)+' · bank $'+sc$(X.minBank)+' from $'+sc$(X.lockStart)+' · guard from $'+sc$(X.guardStart):'—';$('streakVal').textContent=(S.streak>0?'+':'')+S.streak}
+function renderHeader(){const px=X.bid&&X.ask?(X.bid+X.ask)/2:(X.bid||X.ask||0);S.price=px;$('tbPrice').textContent=px?fx(px):'—';const lb=document.querySelector('#tbPrice+.l');if(lb)lb.textContent=(X.cur?X.cur.symbolName:'—')+' · '+TFN[X.tf];
+  const B=X.bars,o=B.length?B[B.length-1].o:px,ch=o?(px-o)/o*100:0,ce=$('tbChg');ce.textContent=(ch>=0?'+':'')+ch.toFixed(2)+'%';ce.style.color=ch>=0?'var(--green)':'var(--red)';
+  $('tbProb').textContent=(S.prob*100).toFixed(1)+'%';$('tbProb').style.color=S.prob>=.5?'var(--green)':'var(--red)';$('tbClock').textContent=new Date().toISOString().substr(11,8);$('spotPrice').textContent=px?fx(px):'—'}
+function renderPnl(){S.pnl=X.bal0===null?0:X.bal-X.bal0;S.bankroll=X.bal||0;if(S.eqCurve.length<2)S.eqCurve=[S.bankroll||0,S.bankroll||0];renderPnlCore();
+  $('stOpen').textContent=X.open;$('stPos').textContent=X.open;$('stStake').textContent=X.lot.toFixed(2);$('mExp').textContent=X.lot.toFixed(2);$('mEdge').textContent=Math.round(Math.abs(S.prob-.5)*200)+'%';
+  $('deskStrip').innerHTML=S.fills.filter(f=>f.action.startsWith('CLOSE')).slice(0,24).map(f=>`<i style="background:${f.result[0]==='+'?'var(--green)':'var(--red)'}"></i>`).join('')||'<i style="background:#8a8f9c55"></i>'}
+function renderOrderBook(){const a=X.an;$('obook').innerHTML=`<div class="ob-row ask"><span class="p">${X.ask?fx(X.ask):'—'}</span><span class="s">ASK</span></div><div class="ob-row bid"><span class="p">${X.bid?fx(X.bid):'—'}</span><span class="s">BID · spread ${X.ask&&X.bid?fx(X.ask-X.bid):'—'}</span></div>`+(a?`<div class="ob-row"><span class="p">ATR ${fx(a.atr)}</span><span class="s">RSI ${a.rsi.toFixed(0)} · ${a.side} ${a.conf}%</span></div>`:'')}
+function drawCandles(){const cv=$('candles'),c=fit(cv),w=cw(cv),h=chh(cv);c.clearRect(0,0,w,h);const all=X.bars,offP=Math.max(0,Math.round(V.off||0)),offN=Math.min(0,Math.round(V.off||0)),e=Math.max(5,all.length-offP),s=Math.max(0,e-V.n),B=all.slice(s,e);if(B.length<5)return;
+  if(!offP){const tg=X.bid||B[B.length-1].c;X.dpx=X.dpx==null?tg:X.dpx+(tg-X.dpx)*.35;const Lb=B[B.length-1];B[B.length-1]={t:Lb.t,o:Lb.o,c:X.dpx,h:Math.max(Lb.h,X.dpx),l:Math.min(Lb.l,X.dpx)}}   /* the live candle glides to the new price instead of jumping, so it never looks frozen */
+  const a=X.an,GR=58,GB=12,pw=w-GR,ph=h-GB,M=3,dk=document.body.classList.contains('dark'),ax=dk?'#9aa0b0':'#5d6272',gl=dk?'rgba(150,155,170,.17)':'rgba(0,0,0,.08)';
+  const lv=X.pl.filter(q=>X.cur&&q.sym===X.cur.symbolId),extra=[];lv.forEach(q=>[q.sl,q.tp,q.entry].forEach(v=>{if(v&&Math.abs(v-B[B.length-1].c)<B[B.length-1].c*.03)extra.push(v)}));
+  const L=B[B.length-1],px=X.bid||L.c,ask=X.ask||px,hi=Math.max(...B.map(b=>b.h),...extra,ask),lo=Math.min(...B.map(b=>b.l),...extra,px),pad=(hi-lo)*.07||1e-6,R0=hi-lo+2*pad,mid0=(hi+lo)/2+(V.po||0)*R0,top=mid0+R0/2*(V.ps||1),bot=mid0-R0/2*(V.ps||1),Y=v=>6+(top-v)/(top-bot)*(ph-12),bw=pw/(V.n+M),Xp=i=>(V.n-(B.length-1-i)+offN)*bw-bw/2;
+  c.font='7.5px monospace';c.textBaseline='alphabetic';
+  for(let k=0;k<=5;k++){const v=bot+(top-bot)*k/5,y=Y(v);c.strokeStyle=gl;c.lineWidth=1;c.beginPath();c.moveTo(0,y);c.lineTo(pw,y);c.stroke();c.fillStyle=ax;c.fillText(fx(v),pw+4,y+2.5)}
+  const ev=Math.max(1,Math.round(V.n/5));let lx=-99;B.forEach((b,i)=>{if((s+i)%ev===0&&Xp(i)-lx>46&&Xp(i)>16){const x=Xp(i);lx=x;c.strokeStyle=gl;c.beginPath();c.moveTo(x,0);c.lineTo(x,ph);c.stroke();c.fillStyle=ax;c.fillText(new Date(b.t*6e4).toISOString().substr(11,5),Math.max(0,Math.min(pw-26,x-12)),h-2)}});
+  c.strokeStyle=dk?'#3a3f4d':'#cfcbc0';c.beginPath();c.moveTo(pw,0);c.lineTo(pw,ph);c.lineTo(0,ph);c.stroke();
+  const bwd=Math.max(2,bw*.72);B.forEach((b,i)=>{const u=b.c>=b.o,x=Xp(i);c.strokeStyle=c.fillStyle=u?'#18a058':'#e5484d';c.lineWidth=1;c.beginPath();c.moveTo(x,Y(b.h));c.lineTo(x,Y(b.l));c.stroke();c.fillRect(x-bwd/2,Math.min(Y(b.o),Y(b.c)),bwd,Math.max(1,Math.abs(Y(b.o)-Y(b.c))))});
+  if(a){const o=all.length-a.e12s.length;[[a.e12s,'#3b6fe0'],[a.e26s,'#e8a13c']].forEach(([r,col])=>{const q=r.slice(Math.max(0,s-o),Math.max(0,e-o)),k=B.length-q.length;c.beginPath();q.forEach((v,i)=>i?c.lineTo(Xp(k+i),Y(v)):c.moveTo(Xp(k),Y(v)));c.strokeStyle=col;c.lineWidth=1.2;c.stroke()});
+    [a.hi,a.lo].forEach(v=>{if(v<bot||v>top)return;c.setLineDash([2,4]);c.strokeStyle=ax;c.lineWidth=1;c.beginPath();c.moveTo(0,Y(v));c.lineTo(pw,Y(v));c.stroke();c.setLineDash([])});
+    if(a.zones)[[a.zones.d,'24,160,88','DEMAND'],[a.zones.s,'229,72,77','SUPPLY']].forEach(([z,rgb,t])=>{if(!z)return;const x0=Math.max(0,Xp(Math.max(0,z.i-s))-bw/2),y1=Y(z.zh),y2=Y(z.zl);if(y2<0||y1>ph)return;c.fillStyle='rgba('+rgb+',.16)';c.fillRect(x0,y1,pw-x0,Math.max(2,y2-y1));c.strokeStyle='rgba('+rgb+',.7)';c.lineWidth=1;c.strokeRect(x0,y1,pw-x0,Math.max(2,y2-y1));c.fillStyle='rgb('+rgb+')';c.font='bold 7.5px monospace';c.fillText(t,x0+3,y1+8)})}
+  lv.forEach(q=>{const f=floatOf(q);[[q.entry,'#7c5cff',q.side+(f!=null?' '+(f>=0?'+':'')+f.toFixed(2):'')],[q.sl,'#e5484d','SL'],[q.tp,'#18a058','TP']].forEach(([v,col,t])=>{if(!v)return;const y=Y(v);c.setLineDash([5,3]);c.strokeStyle=col;c.lineWidth=1;c.beginPath();c.moveTo(0,y);c.lineTo(pw,y);c.stroke();c.setLineDash([]);c.fillStyle=col;c.fillRect(pw,y-5,GR,10);c.fillStyle='#fff';c.font='bold 7.5px monospace';c.fillText(fx(v),pw+3,y+2.5);c.fillStyle=col;c.fillText(t,4,y-3)})});
+  const up=px>=L.o,pc=up?'#18a058':'#e5484d';c.setLineDash([2,2]);c.strokeStyle='#e5484d99';c.beginPath();c.moveTo(0,Y(ask));c.lineTo(pw,Y(ask));c.stroke();c.strokeStyle=pc;c.beginPath();c.moveTo(0,Y(px));c.lineTo(pw,Y(px));c.stroke();c.setLineDash([]);
+  c.fillStyle=pc;c.fillRect(pw,Y(px)-6,GR,12);c.fillStyle='#fff';c.font='bold 8px monospace';c.fillText(fx(px),pw+3,Y(px)+3);
+  if(Math.abs(Y(ask)-Y(px))>=12){c.fillStyle='#e5484d';c.fillRect(pw,Y(ask)-5,GR,10);c.fillStyle='#fff';c.font='7.5px monospace';c.fillText(fx(ask),pw+3,Y(ask)+2.5)}
+  c.fillStyle=ax;c.font='bold 8px monospace';c.fillText((X.cur?X.cur.symbolName:'')+' '+TFN[X.tf]+'  O '+fx(L.o)+'  H '+fx(L.h)+'  L '+fx(L.l)+'  C '+fx(L.c),4,9);
+  c.font='7.5px monospace';c.fillText('Ask '+fx(ask)+'  Bid '+fx(px)+'  Spr '+fx(ask-px)+(a?'  ATR '+fx(a.atr)+'  RSI '+a.rsi.toFixed(0):''),4,19);
+  if(offP>0||(V.ps||1)!==1||Math.abs(V.po||0)>.01){c.fillStyle='#e8a13c';c.fillText('panned — double-tap to return',4,29)}}
+function drawLanding(){const cv=$('landing'),c=fit(cv),w=cw(cv),h=chh(cv);c.clearRect(0,0,w,h);const a=X.an;if(!a)return;const cx=w/2,sig=w*.16,k=w*.5/(a.atr*4),mu=cx+a.score*a.atr*3*k,pdf=x=>Math.exp(-((x-mu)**2)/(2*sig*sig));
+  for(let x=0;x<w;x+=2){const yh=pdf(x)*h*.92;c.fillStyle=x<cx?'rgba(229,72,77,.5)':'rgba(24,160,88,.55)';c.fillRect(x,h-yh,2,yh)}
+  c.strokeStyle='#8a8f9c';c.setLineDash([4,3]);c.beginPath();c.moveTo(cx,0);c.lineTo(cx,h);c.stroke();c.setLineDash([]);
+  [[a.slD,'#e5484d','SL',-1],[a.tpD,'#18a058','TP',1]].forEach(([d,col,t,sg])=>{const side=a.side==='SELL'?-1:1,x=cx+sg*side*d*k;c.strokeStyle=col;c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke();c.fillStyle=col;c.font='bold 7px monospace';c.fillText(t,Math.max(2,Math.min(w-16,x+2)),9)});
+  c.fillStyle='#8a8f9c';c.font='7px monospace';c.fillText('NOW',cx-8,h-3);c.font='bold 8px monospace';c.fillStyle='#18a058';c.fillText((S.prob*100).toFixed(0)+'% UP',cx+6,h*.45);c.fillStyle='#e5484d';c.fillText((100-S.prob*100).toFixed(0)+'% DOWN',cx-48,h*.45)}
+/* the orb: your original, plus real veins from every input card, through the brain, out to every decision card */
+function drawOrb(){drawOrbCore();const cv=$('orb'),c=cv.getContext('2d'),w=cw(cv),h=chh(cv),cr=cv.getBoundingClientRect(),cx=w/2,cy=h/2,R=Math.min(w,h)*.34,T=Date.now()/1000,a=X.an;
+  const br=X.brain&&Date.now()-X.brain.at<120000?X.brain:null,cf=br?br.confidence/100:0,col=br?(br.action==='BUY'?'#18a058':br.action==='SELL'?'#e5484d':'#8a8f9c'):(a&&a.side==='BUY'?'#18a058':a&&a.side==='SELL'?'#e5484d':'#8a8f9c');
+  const vein=(x0,y0,x1,y1,val,co,seed)=>{const m=Math.min(1,Math.abs(val)),mx=(x0+x1)/2;for(let k=0;k<6;k++){const sag=Math.sin(seed*3+k)*h*.05,off=(k-2.5)*R*.12;c.beginPath();c.moveTo(x0,y0);c.bezierCurveTo(mx,y0+sag,mx,y1-sag+off*.4,x1,y1+off*.3);c.strokeStyle=co;c.globalAlpha=.1+m*.5;c.lineWidth=.4+m*1.5;c.stroke();
+    const t=(T*(.25+m*.9)+k/6+seed)%1,u=1-t,px=u*u*u*x0+3*u*u*t*mx+3*u*t*t*mx+t*t*t*x1,py=u*u*u*y0+3*u*u*t*y0+3*u*t*t*(y1-sag)+t*t*t*y1;c.globalAlpha=.9;c.fillStyle=co;c.beginPath();c.arc(px,py,.7+m*1.2,0,7);c.fill()}c.globalAlpha=1};
+  const mid=e=>{const r=e.getBoundingClientRect();return r.top+r.height/2-cr.top};
+  const F=STK.map(d=>a?d[1](a):0);[...document.querySelectorAll('#sideStack .mini')].forEach((e,i)=>vein(0,mid(e),cx-R*.95,cy+(i-2.5)*R*.2,F[i],i===5?'#e8a13c':F[i]>=0?'#18a058':'#e5484d',i*.17));
+  const n=S.wins+S.losses,wt=[.3,n?.2+.6*S.wins/n:.2,br?cf:Math.abs(S.prob-.5)*2,br?cf:Math.abs(S.prob-.5)*2,X.open?1:.2];
+  [...document.querySelectorAll('#rightRail .rcard')].forEach((e,i)=>vein(cx+R*.95,cy+(i-2)*R*.2,w,mid(e),wt[i]||.3,i===1?'#7c5cff':col,i*.31+.5));
+  const th=X.think,bx=cx,by=9;vein(bx,by+4,cx,cy-R*.95,th?1:br?cf:.25,'#3b6fe0',.9);[...document.querySelectorAll('#rightRail .rcard')].slice(2,4).forEach((e,i)=>vein(w-2,mid(e),bx+6,by,X.open?.8:.2,'#e8a13c',1.7+i));
+  c.fillStyle=th?'#3b6fe0':X.ph==='ACT'?'#18a058':'#8a8f9c';c.beginPath();c.arc(bx,by,3.5+(th?2*Math.sin(T*8):0),0,7);c.fill();c.fillStyle=getComputedStyle(document.body).getPropertyValue('--ink');c.font='7px monospace';c.textAlign='center';c.fillText('MEGAN BRAIN · '+X.ph+(br?' · '+br.action+' '+br.confidence+'%':''),cx,by+13);c.textAlign='left';
+  const st=$('orbState'),sb=$('orbSub');
+  if(!X.cur){st.textContent='LOGIN WITH CTRADER TO START';st.style.color='var(--blue)';sb.textContent='Real broker data only — no simulation.'}
+  else if(a){st.textContent=X.ph+' · '+a.side+' '+a.conf+'% · '+a.strat;st.style.color=a.side==='BUY'?'var(--green)':a.side==='SELL'?'var(--red)':'var(--blue)';
+    sb.textContent=X.cur.symbolName+' '+TFN[X.tf]+': '+(a.e12>a.e26?'up':'down')+'trend, RSI '+a.rsi.toFixed(0)+'. '+a.why+'. '+(a.side==='WAIT'?'Waiting for a close above '+fx(a.hi)+' or below '+fx(a.lo)+'.':'Plan: stop '+fx(a.slD)+', target '+fx(a.tpD)+'.')+(X.note?' '+X.note:'')}}
+let fcount=0;function frame(){fcount++;drawCandles();if(fcount%4===0)drawOrb();if(fcount%12===0){drawModel();drawLanding()}requestAnimationFrame(frame)}
+/* ---- controls ---- */
+function ui(){const b=$('engineBtn');b.textContent=X.run?'STOP MEGAN':'START MEGAN';b.classList.toggle('on',X.run);$('scalpBtn').classList.toggle('on',X.scalp);$('scalpBtn').textContent='⚡ SCALP '+(X.scalp?'ON':'OFF');$('apBtn').classList.toggle('on',X.ap);const m=$('modeChip');m.textContent=X.env.toUpperCase();m.className='chip '+(X.env==='live'?'warn':'live');$('pnlMode').textContent=X.env.toUpperCase()}
+$('engineBtn').onclick=()=>X.run?stop():start();
+/* ===== AUTO PAIR: watch a basket, take the best READY setup, one trade at a time ===== */
+function scanInit(){if(!X.syms.length)return;const wk=weekendNow(),rec=JSON.parse(LS.mq_scan||'[]'),want=wk?[...rec.filter(open24),'BTCUSD','ETHUSD','LTCUSD','XRPUSD','BCHUSD','SOLUSD','ADAUSD','DOGEUSD',...X.syms.filter(s=>CRYPTO.test(nm0(s.symbolName))).map(s=>s.symbolName)]:[...rec,'XAUUSD','EURUSD','GBPUSD','USDJPY','BTCUSD','ETHUSD','XAGUSD','GBPJPY'],nm=s=>s.replace(/\W/g,'').toUpperCase(),seen={};let c=0,i=0;
+  for(const w of want){if(c>=8)break;const s=X.syms.find(x=>nm(x.symbolName)===nm(w))||X.syms.find(x=>nm(x.symbolName).startsWith(nm(w)));if(!s||seen[s.symbolId]||(wk&&!open24(s.symbolName))||(JSON.parse(LS.mq_bad||'{}')[s.symbolName]||0)>Date.now())continue;seen[s.symbolId]=1;c++;
+    const e=X.sc[s.symbolId]||(X.sc[s.symbolId]={id:s.symbolId,name:s.symbolName,bars:[],bid:0,ask:0,dg:5,full:null,lt:0});if(X.cur&&X.cur.symbolId===s.symbolId)continue;
+    send(2116,{ctidTraderAccountId:X.acct,symbolId:[s.symbolId]});send(2127,{ctidTraderAccountId:X.acct,symbolId:[s.symbolId]});setTimeout(()=>getBarsFor(s.symbolId),(i++)*350)}}   /* staggered: the broker limits history requests */
+function scanOne(e){const sv={cur:X.cur,bars:X.bars,bid:X.bid,ask:X.ask,digits:X.digits,an:X.an,dry:X.dry};
+  X.cur={symbolId:e.id,symbolName:e.name,full:e.full};X.bars=e.bars;X.bid=e.bid;X.ask=e.ask;X.digits=e.dg||5;X.dry=true;let r=null;try{analyze();r=X.an}catch(x){}
+  Object.assign(X,{cur:sv.cur,bars:sv.bars,bid:sv.bid,ask:sv.ask,digits:sv.digits,an:sv.an,dry:sv.dry});return r}
+function useSym(e){X.cur={symbolId:e.id,symbolName:e.name,full:e.full};X.bars=e.bars;X.bid=e.bid;X.ask=e.ask;X.digits=e.dg||5;X.an=null;X.dpx=null;V.off=V.offF=0;V.ps=1;V.po=0;LS.mq_sym=e.name;LS.mq_symid=e.id;if(X.run)newsTick()}
+function scanLoop(){const n=Date.now();if(!X.ap||!X.run||!X.acct)return;if(X.pl.length||n<X.lock||n<X.pauseUntil)return;   /* one trade at a time, on any pair */
+  let best=null;for(const e of Object.values(X.sc)){if(e.bars.length<60||!e.bid||!e.ask||n-(e.lt||0)>20000||(weekendNow()&&!open24(e.name)))continue;if(X.dis[e.id]>n||symOff((X.rules[e.id]||{}).mode)||!e.full)continue;
+    const r=scanOne(e);if(!r||r.side==='WAIT'||e.ask-e.bid>r.atr*(X.scalp?1.5:.3))continue;const q=r.conf-(e.ask-e.bid)/r.atr*20;if(!best||q>best.q)best={e,r,q}}
+  if(!best)return;if(!X.cur||X.cur.symbolId!==best.e.id){useSym(best.e);note('AUTO PAIR: '+best.e.name+' is the best ready setup, switching to it.','sys','Switching to '+best.e.name+'.')}
+  X.an=best.r;maybeTrade(X.an)}
+setInterval(scanLoop,1000);
+setInterval(()=>{if(!X.syms.length)return;const w=weekendNow();if(X.wk!==w){X.wk=w;note(w?'The weekend started: forex, gold and indices are closed, so I scan and trade crypto only.':'The forex week is open again, so I scan all pairs.','sys',w?'The weekend started. I trade crypto only.':'The markets are open again.');if(X.ap)scanInit()}},30000);
+setInterval(()=>{if(!X.cur||!X.acct||!X.ws||X.ws.readyState!==1)return;const n=Date.now();if(!X.bars.length&&n-(X.chAt||0)>6000){X.chAt=n;getBars()}if(X.lt&&n-X.lt>15000&&n-(X.subAt||0)>15000){X.subAt=n;send(2127,{ctidTraderAccountId:X.acct,symbolId:[X.cur.symbolId]})}},3000);   /* watchdog: a silent feed or an empty chart is retried automatically */
+$('apBtn').onclick=()=>{X.ap=!X.ap;LS.mq_ap=X.ap?'1':'';ui();if(X.ap)scanInit();note(X.ap?'AUTO PAIR on: I watch a basket of pairs and take the best ready setup, one trade at a time.':'AUTO PAIR off: I trade only the pair on screen.','sys',X.ap?'Auto pair is on.':'Auto pair is off.')};
+$('scalpBtn').onclick=()=>{const want=!X.scalp;if(!confirm((want?'Turn SCALP mode ON?':'Turn SCALP mode OFF?')+' Only you can change this, Megan never does.'))return;X.scalp=want;LS.mq_scalp=X.scalp?'1':'';ui();X.la=0;X.lock=0;if(X.scalp&&!X.run&&X.cur&&X.acct)setTimeout(start,50);note(X.scalp?'AGGRESSIVE SCALP ON: lower entry bar, tight stop, quick target, fast breakeven, instant re-entry.':'Scalp mode off: back to normal setups.','sys',X.scalp?'Aggressive scalp mode on.':'Scalp mode off.')};
+$('modeChip').onclick=()=>{if(X.run)stop();X.env=X.env==='demo'?'live':'demo';LS.mq_env=X.env;LS.mq_acct='';X.acct=0;X.bal0=null;ui();if(X.ws){X.stop=true;X.ws.close()}if(X.tok)setTimeout(connect,300)};
+$('connBtn').onclick=()=>{if(X.acct&&confirm('Log out of cTrader on this phone?')){['mq_tok','mq_sec','mq_ref','mq_acct'].forEach(k=>LS.removeItem(k));location.reload()}else if(!X.acct)$('login').onclick()};
+[['1m',1],['5m',5],['15m',7],['30m',8],['1h',9]].forEach(([t,id])=>{const b=document.createElement('button');b.textContent=t;b.className='tf'+(id===X.tf?' on':'');b.onclick=()=>{X.tf=id;setBars([]);X.an=null;V.off=0;S.probHist=[];S.mktHist=[];document.querySelectorAll('.tf').forEach(x=>x.classList.toggle('on',x===b));if(X.cur){X.bretry=0;getBars();send(2135,{ctidTraderAccountId:X.acct,symbolId:X.cur.symbolId,period:X.tf})}Object.values(X.sc).forEach((e,i)=>{if(!X.cur||e.id!==X.cur.symbolId){e.bars=[];setTimeout(()=>getBarsFor(e.id),i*350)}})};$('tfs').appendChild(b)});
+$('vo').onclick=()=>{X.voice=!X.voice;$('vo').innerHTML=X.voice?'&#128266;':'&#128263;';if(window.Megan)Megan.voice.setSound(X.voice);if(X.voice)talk('Hello Kats. I am Megan, and I am ready to trade.',3);else if(window.speechSynthesis)speechSynthesis.cancel()};
+let micOn=false;$('mic').onclick=()=>{if(!window.Megan){note('megan-brain.js did not load.','loss');return}micOn=!micOn;if(micOn){X.voice=true;Megan.voice.setSound(true);$('vo').innerHTML='&#128266;'}Megan.voice.setMic(micOn);$('mic').classList.toggle('act',micOn)};
+const setTheme=d=>{document.body.classList.toggle('dark',d);LS.mq_theme=d?'dark':'light';$('th').innerHTML=d?'&#9728;':'&#9790;'};$('th').onclick=()=>setTheme(!document.body.classList.contains('dark'));setTheme((LS.mq_theme||'dark')==='dark');
+/* chart: pinch to zoom, drag to scroll, double-tap to return */
+const ptr={};let pd=0,lt=0,vel=0;const cvs=$('candles');V.offF=0;V.ps=1;V.po=0;
+const setOff=v=>{V.offF=Math.max(-10,Math.min(Math.max(0,X.bars.length-20),v));V.off=V.offF};
+cvs.onpointerdown=e=>{cvs.setPointerCapture(e.pointerId);const r=cvs.getBoundingClientRect();ptr[e.pointerId]={x:e.clientX,y:e.clientY,gut:e.clientX-r.left>r.width-58};pd=0;vel=0;const n=Date.now();if(n-lt<300){setOff(0);V.n=60;V.ps=1;V.po=0}lt=n};
+cvs.onpointermove=e=>{const P=ptr[e.pointerId];if(!P)return;const k=Object.keys(ptr),r=cvs.getBoundingClientRect(),bw=(r.width-58)/(V.n+3);
+  if(k.length===1){const dx=e.clientX-P.x,dy=e.clientY-P.y;if(P.gut)V.ps=Math.max(.25,Math.min(8,V.ps*Math.exp(-dy/140)));else{setOff(V.offF+dx/bw);vel=dx/bw;if((V.ps||1)!==1)V.po+=dy/r.height*(V.ps||1)}P.x=e.clientX;P.y=e.clientY}
+  else{P.x=e.clientX;P.y=e.clientY;const q=Object.values(ptr),d=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y);if(pd)V.n=Math.max(15,Math.min(400,Math.round(V.n*pd/Math.max(d,1))));pd=d}};
+cvs.onpointerup=cvs.onpointercancel=e=>{delete ptr[e.pointerId];pd=0;if(Math.abs(vel)>.4&&!Object.keys(ptr).length){const fl=()=>{if(Math.abs(vel)<.05||Object.keys(ptr).length)return;setOff(V.offF+vel);vel*=.93;requestAnimationFrame(fl)};fl()}};
+cvs.onwheel=e=>{e.preventDefault();if(e.shiftKey)setOff(V.offF+(e.deltaY>0?-4:4));else V.n=Math.max(15,Math.min(400,Math.round(V.n*(e.deltaY>0?1.12:.89))))};
+/* tabs: every original panel stays one tap away, no scrolling */
+const TABS=['P&L','LOG','SIGNALS','TRADES','MODEL','RANGE'],panels=[...document.querySelectorAll('#tabBody>.panel')];
+TABS.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{panels.forEach((p,j)=>p.classList.toggle('act',j===i));[...$('tabs').children].forEach((x,j)=>x.classList.toggle('on',j===i));LS.mq_tab=i;renderPnl();renderFills()};$('tabs').appendChild(b)});
+/* ---- live ticker ---- */
+function liveTicker(){const a=X.an,it=[['p','BUILD B6']];if(X.cur)it.push(['b',X.cur.symbolName+' '+(X.bid?fx(X.bid):'—')+' / '+(X.ask?fx(X.ask):'—')]);if(a){it.push([a.score>=0?'g':'r','MEGAN '+a.side+' '+a.conf+'%']);it.push(['p',a.strat]);it.push(['b','RSI '+a.rsi.toFixed(0)+' · ATR '+fx(a.atr)])}
+  if(X.news&&X.news.txt)it.push(['p','NEWS '+Math.round(X.news.heat*100)+'%: '+X.news.txt.slice(0,80)]);S.logs.slice(0,4).forEach(l=>it.push(['g',l.msg.slice(0,70)]));
+  const sp=it.map(([c,t])=>`<span class="${c}">${t}</span>`).join('')||'<span class="b">LOGIN WITH CTRADER TO START</span>';$('tickerInner').innerHTML=sp+sp;
+  const e=$('tickerInner');e.style.display='inline-block';e.style.whiteSpace='nowrap';if(!e.style.animationName)e.style.animation='marq 80s linear infinite'}
+/* ---- start ---- */
+buildStack();buildRight();ui();renderHeader();renderPnl();renderFills();renderSignals();renderRight();renderOrderBook();liveTicker();
+$('tabs').children[+LS.mq_tab||1].onclick();
+setInterval(()=>{renderHeader();renderRight();renderOrderBook()},500);setInterval(()=>{renderPnl();liveTicker()},3000);
+addLog('sys','MORGAN AI QUANT ENGINE — REAL CTRADER DATA ONLY','');requestAnimationFrame(frame);boot();
+
+</script>
+</body>
+</html>
